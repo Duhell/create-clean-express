@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Local test scaffolds generated during dev
+demo-app/
+test-project/
+smoke-test/
+my-api/

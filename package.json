@@ -1,0 +1,58 @@
+{
+  "name": "create-clean-express",
+  "version": "0.1.0",
+  "description": "An opinionated CLI for Express.js that helps developers create clean, scalable backend APIs using a layered architecture.",
+  "bin": {
+    "cex": "./bin/cex.js",
+    "create-clean-express": "./bin/create.js"
+  },
+  "main": "./src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"No tests yet\"",
+    "dev": "node bin/cex.js"
+  },
+  "dependencies": {
+    "chalk": "4.1.2",
+    "commander": "^11.1.0",
+    "enquirer": "^2.4.1",
+    "fs-extra": "^11.2.0",
+    "ora": "5.4.1"
+  },
+  "keywords": [
+    "express",
+    "expressjs",
+    "cli",
+    "scaffold",
+    "generator",
+    "backend",
+    "clean-architecture",
+    "layered-architecture",
+    "boilerplate",
+    "api",
+    "rest-api",
+    "nodejs",
+    "artisan",
+    "mvc",
+    "repository-pattern"
+  ],
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://github.com/Duhell/create-clean-express#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Duhell/create-clean-express.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Duhell/create-clean-express/issues"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

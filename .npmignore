@@ -1,0 +1,24 @@
+# .npmignore — files excluded from the published npm package
+# Everything not in the `files` array in package.json is already excluded,
+# but this provides an extra explicit safety net.
+
+# Dev & CI
+.github/
+.vscode/
+*.test.js
+*.spec.js
+
+# Local test projects (generated during dev)
+demo-app/
+test-project/
+my-api/
+
+# Config
+implemenation-plan.md
+.env
+.env.*
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db
