@@ -30,9 +30,13 @@ jobs:
       - name: Run smoke test before publish
         run: |
           node bin/cex.js new smoke-test --no-install --no-git
-          cd smoke-test && node ../bin/cex.js make resource User
-          test -f smoke-test/src/controllers/UserController.js
+          cd smoke-test
+          node ../bin/cex.js make resource User
+          test -f src/controllers/UserController.js
+          test -f src/services/UserService.js
+          test -f src/repositories/UserRepository.js
           echo "Smoke test passed ✔"
+
 
       - name: Publish to npm
         run: npm publish --access public
