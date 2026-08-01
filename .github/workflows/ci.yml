@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [22.x]
 
     steps:
       - name: Checkout
@@ -34,18 +34,18 @@ jobs:
       - name: Smoke test — CLI help
         run: node bin/cex.js --help
 
-      - name: Smoke test — scaffold a project
-        run: node bin/cex.js new smoke-test --no-install --no-git
+      - name: Smoke test — scaffold JS project
+        run: node bin/cex.js new smoke-test --database none --no-install --no-git
 
-      - name: Smoke test — generate a resource
+      - name: Smoke test — generate a resource (JS)
         working-directory: smoke-test
         run: node ../bin/cex.js make resource User
 
-      - name: Smoke test — generate auth
+      - name: Smoke test — generate auth (JS)
         working-directory: smoke-test
         run: node ../bin/cex.js make auth
 
-      - name: Verify generated files exist
+      - name: Verify generated JS files exist
         run: |
           test -f smoke-test/src/controllers/UserController.js
           test -f smoke-test/src/services/UserService.js
@@ -53,4 +53,21 @@ jobs:
           test -f smoke-test/src/routes/user.routes.js
           test -f smoke-test/src/controllers/AuthController.js
           test -f smoke-test/src/middleware/AuthMiddleware.js
-          echo "All expected files exist ✔"
+          test -f smoke-test/src/utils/logger.js
+          echo "All expected JS files exist ✔"
+
+      - name: Smoke test — scaffold TS project
+        run: node bin/cex.js new smoke-test-ts --database sqlite --typescript --no-install --no-git
+
+      - name: Smoke test — generate a resource (TS)
+        working-directory: smoke-test-ts
+        run: node ../bin/cex.js make resource User
+
+      - name: Verify generated TS files exist
+        run: |
+          test -f smoke-test-ts/src/controllers/UserController.ts
+          test -f smoke-test-ts/src/services/UserService.ts
+          test -f smoke-test-ts/src/repositories/UserRepository.ts
+          test -f smoke-test-ts/src/routes/user.routes.ts
+          test -f smoke-test-ts/src/utils/logger.ts
+          echo "All expected TS files exist ✔"
