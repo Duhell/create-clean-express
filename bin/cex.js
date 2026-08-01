@@ -35,35 +35,52 @@ program
   .action(async (projectName, options) => {
     let database = options.database;
     let typescript = options.typescript;
+    const isInteractive = Boolean(process.stdin.isTTY && !process.env.CI);
 
-    // Ask for Database if not specified via flag
+    // Ask for Database if not specified via flag (only in interactive mode)
     if (!database) {
-      const response = await enquirer.prompt({
-        type: 'select',
-        name: 'database',
-        message: 'Select a database adapter:',
-        choices: [
-          { name: 'sqlite', message: 'SQLite (better-sqlite3)' },
-          { name: 'mysql', message: 'MySQL (mysql2)' },
-          { name: 'prisma', message: 'Prisma ORM' },
-          { name: 'sequelize', message: 'Sequelize ORM' },
-          { name: 'mongoose', message: 'Mongoose (MongoDB)' },
-          { name: 'drizzle', message: 'Drizzle ORM' },
-          { name: 'none', message: 'None' },
-        ],
-      });
-      database = response.database;
+      if (isInteractive) {
+        try {
+          const response = await enquirer.prompt({
+            type: 'select',
+            name: 'database',
+            message: 'Select a database adapter:',
+            choices: [
+              { name: 'sqlite', message: 'SQLite (better-sqlite3)' },
+              { name: 'mysql', message: 'MySQL (mysql2)' },
+              { name: 'prisma', message: 'Prisma ORM' },
+              { name: 'sequelize', message: 'Sequelize ORM' },
+              { name: 'mongoose', message: 'Mongoose (MongoDB)' },
+              { name: 'drizzle', message: 'Drizzle ORM' },
+              { name: 'none', message: 'None' },
+            ],
+          });
+          database = response.database;
+        } catch {
+          database = 'none';
+        }
+      } else {
+        database = 'none';
+      }
     }
 
-    // Ask for TypeScript option if not specified via flag
+    // Ask for TypeScript option if not specified via flag (only in interactive mode)
     if (typescript === undefined) {
-      const response = await enquirer.prompt({
-        type: 'confirm',
-        name: 'typescript',
-        message: 'Would you like to use TypeScript?',
-        initial: true,
-      });
-      typescript = response.typescript;
+      if (isInteractive) {
+        try {
+          const response = await enquirer.prompt({
+            type: 'confirm',
+            name: 'typescript',
+            message: 'Would you like to use TypeScript?',
+            initial: true,
+          });
+          typescript = response.typescript;
+        } catch {
+          typescript = false;
+        }
+      } else {
+        typescript = false;
+      }
     }
 
     await newCommand(projectName, {
