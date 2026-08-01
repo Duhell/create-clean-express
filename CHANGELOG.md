@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-08-01
+
+### Changed
+
+- **ES Modules (ESM)**: Refactored the entire CLI package and all scaffolded templates from CommonJS to native ES Modules (`import`/`export`).
+- **Node.js LTS Engine**: Upgraded minimum Node.js engine requirement to `>=22.0.0` in both CLI and scaffolded projects.
+- **Interactive Database Choice**: Removed automatic `none` default when scaffolding — `cex new` and `create-clean-express` now prompt for database selection interactively.
+- **Upgraded Dependencies**: Upgraded `chalk` to `^5.3.0` and `ora` to `^8.0.1`.
+
+### Added
+
+- **TypeScript Support**: Interactive prompt during `cex new` to generate `.ts` projects complete with `tsconfig.json`, `ts-node-dev`, and types.
+- **SQLite & MySQL Drivers**: Added `sqlite` (`better-sqlite3`) and `mysql` (`mysql2`) database options.
+- **Automated Error Logs**: Added `logs/` directory scaffolding (included in `.gitignore`) and automatic error file logging (`logs/error-YYYY-MM-DD.txt`) via `logErrorToFile` utility integrated into the global error handler.
+
+---
+
 ## [0.1.0] - 2026-07-31
 
 ### Added
@@ -36,4 +53,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoint (`GET /health`)
 - Swagger JSDoc annotations on all generated routes
 
+[0.2.0]: https://github.com/Duhell/create-clean-express/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Duhell/create-clean-express/releases/tag/v0.1.0
