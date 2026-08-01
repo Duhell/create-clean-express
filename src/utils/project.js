@@ -1,13 +1,13 @@
-'use strict';
-
-const path = require('path');
-const fs = require('fs-extra');
+import path from 'path';
+import fs from 'fs-extra';
 
 /**
- * Find the project root by looking for cex.config.json or package.json
- * Starting from cwd and walking up.
+ * Find the project root by looking for cex.config.json or package.json.
+ * Starts from cwd and walks up the directory tree.
+ * @param {string} [cwd]
+ * @returns {string}
  */
-function findProjectRoot(cwd = process.cwd()) {
+export function findProjectRoot(cwd = process.cwd()) {
   let dir = cwd;
   while (true) {
     if (fs.existsSync(path.join(dir, 'cex.config.json'))) return dir;
@@ -21,13 +21,13 @@ function findProjectRoot(cwd = process.cwd()) {
 
 /**
  * Load cex.config.json if it exists at the project root.
+ * @param {string} root
+ * @returns {Record<string, any>}
  */
-function loadConfig(root) {
+export function loadConfig(root) {
   const cfgPath = path.join(root, 'cex.config.json');
   if (fs.existsSync(cfgPath)) {
     return fs.readJsonSync(cfgPath);
   }
   return {};
 }
-
-module.exports = { findProjectRoot, loadConfig };

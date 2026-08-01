@@ -1,6 +1,4 @@
-'use strict';
-
-const chalk = require('chalk');
+import chalk from 'chalk';
 
 const icons = {
   success: chalk.green('✔'),
@@ -10,32 +8,30 @@ const icons = {
   arrow: chalk.cyan('→'),
 };
 
-function success(msg) {
+export function success(msg) {
   console.log(`  ${icons.success} ${chalk.green(msg)}`);
 }
 
-function error(msg) {
+export function error(msg) {
   console.log(`  ${icons.error} ${chalk.red(msg)}`);
 }
 
-function info(msg) {
+export function info(msg) {
   console.log(`  ${icons.info} ${chalk.cyan(msg)}`);
 }
 
-function warn(msg) {
+export function warn(msg) {
   console.log(`  ${icons.warn} ${chalk.yellow(msg)}`);
 }
 
-function step(msg) {
+export function step(msg) {
   console.log(`  ${icons.arrow} ${msg}`);
 }
 
-function section(title) {
+export function section(title) {
   console.log('\n' + chalk.bold.underline(title));
 }
 
-function newline() {
+export function newline() {
   console.log('');
 }
-
-module.exports = { success, error, info, warn, step, section, newline };

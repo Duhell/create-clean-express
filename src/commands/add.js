@@ -1,12 +1,10 @@
-'use strict';
-
-const { execSync } = require('child_process');
-const path = require('path');
-const fs = require('fs-extra');
-const chalk = require('chalk');
-const ora = require('ora');
-const logger = require('../utils/logger');
-const { findProjectRoot } = require('../utils/project');
+import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs-extra';
+import chalk from 'chalk';
+import ora from 'ora';
+import * as logger from '../utils/logger.js';
+import { findProjectRoot } from '../utils/project.js';
 
 const PLUGINS = {
   swagger: addSwagger,
@@ -16,7 +14,7 @@ const PLUGINS = {
   socketio: addSocketIO,
 };
 
-async function addCommand(plugin) {
+export async function addCommand(plugin) {
   const root = findProjectRoot();
 
   if (!PLUGINS[plugin]) {
@@ -40,9 +38,7 @@ function addSwagger(root) {
   installPackages(root, ['swagger-ui-express', 'swagger-jsdoc']);
 
   fs.outputFileSync(path.join(root, 'src/config/swagger.js'), `
-'use strict';
-
-const swaggerJsdoc = require('swagger-jsdoc');
+import swaggerJsdoc from 'swagger-jsdoc';
 
 const options = {
   definition: {
@@ -58,19 +54,19 @@ const options = {
 };
 
 const swaggerSpec = swaggerJsdoc(options);
-module.exports = swaggerSpec;
+export default swaggerSpec;
 `.trimStart());
 
   logger.success('Created src/config/swagger.js');
   logger.info('Add to app.js:');
-  logger.info("  const swaggerUi = require('swagger-ui-express');");
-  logger.info("  const swaggerSpec = require('./config/swagger');");
+  logger.info("  import swaggerUi from 'swagger-ui-express';");
+  logger.info("  import swaggerSpec from './config/swagger.js';");
   logger.info("  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));");
 }
 
 function addDocker(root) {
   fs.outputFileSync(path.join(root, 'Dockerfile'), `
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
@@ -110,6 +106,7 @@ volumes:
 node_modules
 .env
 *.log
+logs/
 .git
 `.trimStart());
 
@@ -122,9 +119,7 @@ function addRedis(root) {
   installPackages(root, ['ioredis']);
 
   fs.outputFileSync(path.join(root, 'src/config/redis.js'), `
-'use strict';
-
-const Redis = require('ioredis');
+import Redis from 'ioredis';
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
@@ -135,7 +130,7 @@ const redis = new Redis({
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', (err) => console.error('Redis error:', err));
 
-module.exports = redis;
+export default redis;
 `.trimStart());
 
   logger.success('Created src/config/redis.js');
@@ -146,10 +141,8 @@ function addBullMQ(root) {
   installPackages(root, ['bullmq', 'ioredis']);
 
   fs.outputFileSync(path.join(root, 'src/config/queue.js'), `
-'use strict';
-
-const { Queue, Worker } = require('bullmq');
-const Redis = require('ioredis');
+import { Queue, Worker } from 'bullmq';
+import Redis from 'ioredis';
 
 const connection = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
@@ -157,15 +150,13 @@ const connection = new Redis({
   maxRetriesPerRequest: null,
 });
 
-function createQueue(name) {
+export function createQueue(name) {
   return new Queue(name, { connection });
 }
 
-function createWorker(name, processor) {
+export function createWorker(name, processor) {
   return new Worker(name, processor, { connection });
 }
-
-module.exports = { createQueue, createWorker };
 `.trimStart());
 
   logger.success('Created src/config/queue.js');
@@ -175,11 +166,9 @@ function addSocketIO(root) {
   installPackages(root, ['socket.io']);
 
   fs.outputFileSync(path.join(root, 'src/config/socket.js'), `
-'use strict';
+import { Server } from 'socket.io';
 
-const { Server } = require('socket.io');
-
-function initSocket(httpServer) {
+export function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: '*' },
   });
@@ -194,12 +183,10 @@ function initSocket(httpServer) {
 
   return io;
 }
-
-module.exports = { initSocket };
 `.trimStart());
 
   logger.success('Created src/config/socket.js');
-  logger.info("In server.js: const { initSocket } = require('./config/socket');");
+  logger.info("In server.js: import { initSocket } from './config/socket.js';");
   logger.info("Then: const io = initSocket(server);");
 }
 
@@ -214,5 +201,3 @@ function installPackages(root, packages) {
     spinner.fail(chalk.yellow(`npm install failed — run: npm install ${packages.join(' ')}`));
   }
 }
-
-module.exports = { addCommand };

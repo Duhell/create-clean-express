@@ -1,7 +1,3 @@
-'use strict';
-
-module.exports = {
-  newCommand: require('./commands/new').newCommand,
-  makeCommand: require('./commands/make').makeCommand,
-  addCommand: require('./commands/add').addCommand,
-};
+export { newCommand } from './commands/new.js';
+export { makeCommand } from './commands/make.js';
+export { addCommand } from './commands/add.js';

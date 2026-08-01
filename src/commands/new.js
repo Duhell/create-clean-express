@@ -1,24 +1,27 @@
-'use strict';
+import path from 'path';
+import fs from 'fs-extra';
+import { execSync } from 'child_process';
+import ora from 'ora';
+import chalk from 'chalk';
+import * as logger from '../utils/logger.js';
+import * as templates from '../templates/index.js';
 
-const path = require('path');
-const fs = require('fs-extra');
-const { execSync } = require('child_process');
-const ora = require('ora');
-const chalk = require('chalk');
-const logger = require('../utils/logger');
-
-async function newCommand(projectName, options = {}) {
+export async function newCommand(projectName, options = {}) {
   const {
     database = 'none',
     validation = 'none',
+    typescript = false,
     install = true,
     git = true,
   } = options;
 
   const targetDir = path.resolve(process.cwd(), projectName);
+  const isTs = Boolean(typescript);
+  const ext = isTs ? 'ts' : 'js';
 
   logger.section('Creating new Express project');
   logger.info(`Project: ${chalk.bold(projectName)}`);
+  logger.info(`Language: ${chalk.bold(isTs ? 'TypeScript' : 'JavaScript (ESM)')}`);
   logger.info(`Database: ${chalk.bold(database)}`);
   logger.info(`Validation: ${chalk.bold(validation)}`);
   logger.newline();
@@ -47,6 +50,7 @@ async function newCommand(projectName, options = {}) {
       'src/errors',
       'src/database',
       'tests',
+      'logs',
     ];
 
     for (const dir of dirs) {
@@ -54,13 +58,14 @@ async function newCommand(projectName, options = {}) {
     }
 
     // ── Write project files ────────────────────────────────────────────────
-    writeProjectFiles(targetDir, projectName, database, validation);
+    writeProjectFiles(targetDir, projectName, database, validation, isTs, ext);
 
     spinner.succeed(chalk.green('Project structure created'));
 
     // ── Write cex.config.json ──────────────────────────────────────────────
     const config = {
-      language: 'javascript',
+      language: isTs ? 'typescript' : 'javascript',
+      module: 'esm',
       architecture: 'layered',
       database,
       validation,
@@ -112,36 +117,76 @@ async function newCommand(projectName, options = {}) {
 // File writers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function writeProjectFiles(targetDir, projectName, database, validation) {
+function writeProjectFiles(targetDir, projectName, database, validation, isTs, ext) {
   const write = (relPath, content) =>
     fs.outputFileSync(path.join(targetDir, relPath), content.trimStart());
 
   // package.json
-  const deps = buildDependencies(database, validation);
-  write('package.json', JSON.stringify({
+  const deps = buildDependencies(database, validation, isTs);
+  
+  const packageJson = {
     name: projectName,
     version: '1.0.0',
     description: `${projectName} — a clean Express.js API`,
-    main: 'src/server.js',
-    scripts: {
-      dev: 'node src/server.js',
-      start: 'NODE_ENV=production node src/server.js',
-      test: 'echo "No tests yet"',
+    type: 'module',
+    main: isTs ? 'dist/server.js' : `src/server.${ext}`,
+    scripts: isTs
+      ? {
+          dev: 'ts-node-dev --respawn --transpile-only src/server.ts',
+          build: 'tsc',
+          start: 'NODE_ENV=production node dist/server.js',
+          test: 'echo "No tests yet"',
+        }
+      : {
+          dev: 'node src/server.js',
+          start: 'NODE_ENV=production node src/server.js',
+          test: 'echo "No tests yet"',
+        },
+    engines: {
+      node: '>=22.0.0',
     },
     dependencies: deps.prod,
     devDependencies: deps.dev,
-  }, null, 2));
+  };
+
+  write('package.json', JSON.stringify(packageJson, null, 2));
+
+  // tsconfig.json if TypeScript
+  if (isTs) {
+    write('tsconfig.json', JSON.stringify({
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        outDir: './dist',
+        rootDir: './src',
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true
+      },
+      include: ['src/**/*'],
+      exclude: ['node_modules', 'dist', 'logs', 'tests']
+    }, null, 2));
+  }
 
   // .env
+  let envDbPart = `DATABASE_URL=`;
+  if (database === 'sqlite') {
+    envDbPart = `DATABASE_URL=./database.sqlite`;
+  } else if (database === 'mysql') {
+    envDbPart = `DB_HOST=localhost\nDB_PORT=3306\nDB_USER=root\nDB_PASSWORD=\nDB_NAME=${projectName.replace(/[-]/g, '_')}`;
+  }
+
   write('.env', `
 NODE_ENV=development
 PORT=3000
 APP_NAME=${projectName}
 
-# Database
-DATABASE_URL=
+# Database Configuration
+${envDbPart}
 
-# JWT
+# JWT Configuration
 JWT_SECRET=change_me_in_production
 JWT_EXPIRES_IN=7d
 `);
@@ -152,7 +197,7 @@ NODE_ENV=development
 PORT=3000
 APP_NAME=${projectName}
 
-DATABASE_URL=
+${envDbPart}
 
 JWT_SECRET=
 JWT_EXPIRES_IN=7d
@@ -163,21 +208,62 @@ JWT_EXPIRES_IN=7d
 node_modules/
 .env
 dist/
+logs/
 *.log
 .DS_Store
+Thumbs.db
 `);
 
-  // src/app.js
-  write('src/app.js', `
-'use strict';
+  // src/utils/logger.js or ts (File logger for errors)
+  write(`src/utils/logger.${ext}`, templates.fileLoggerTemplate(isTs));
 
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const morgan = require('morgan');
-const { globalErrorHandler } = require('./middleware/errorHandler');
-const { notFoundHandler } = require('./middleware/notFound');
-const routes = require('./routes');
+  // src/app.js or ts
+  if (isTs) {
+    write(`src/app.${ext}`, `
+import express, { Application, Request, Response } from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import morgan from 'morgan';
+import { globalErrorHandler } from './middleware/errorHandler.js';
+import { notFoundHandler } from './middleware/notFound.js';
+import routes from './routes/index.js';
+
+const app: Application = express();
+
+// ── Security & Parsing ─────────────────────────────────────────────────────
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ── Logging ────────────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
+
+// ── Health check ───────────────────────────────────────────────────────────
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ── API Routes ─────────────────────────────────────────────────────────────
+app.use('/api/v1', routes);
+
+// ── Error handling ─────────────────────────────────────────────────────────
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
+
+export default app;
+`);
+  } else {
+    write(`src/app.${ext}`, `
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import morgan from 'morgan';
+import { globalErrorHandler } from './middleware/errorHandler.js';
+import { notFoundHandler } from './middleware/notFound.js';
+import routes from './routes/index.js';
 
 const app = express();
 
@@ -204,15 +290,17 @@ app.use('/api/v1', routes);
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
-module.exports = app;
+export default app;
 `);
+  }
 
-  // src/server.js
-  write('src/server.js', `
-'use strict';
+  // src/server.js or ts
+  if (isTs) {
+    write(`src/server.${ext}`, `
+import dotenv from 'dotenv';
+dotenv.config();
 
-require('dotenv').config();
-const app = require('./app');
+import app from './app.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -238,27 +326,78 @@ process.on('SIGINT', () => {
   });
 });
 
-module.exports = server;
+export default server;
 `);
+  } else {
+    write(`src/server.${ext}`, `
+import dotenv from 'dotenv';
+dotenv.config();
 
-  // src/routes/index.js
-  write('src/routes/index.js', `
-'use strict';
+import app from './app.js';
 
-const express = require('express');
-const router = express.Router();
+const PORT = process.env.PORT || 3000;
+
+const server = app.listen(PORT, () => {
+  const env = process.env.NODE_ENV || 'development';
+  console.log(\`\\n  🚀  Server running at http://localhost:\${PORT}\`);
+  console.log(\`  📋  Environment: \${env}\\n\`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received — shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  server.close(() => {
+    console.log('\\nServer stopped');
+    process.exit(0);
+  });
+});
+
+export default server;
+`);
+  }
+
+  // src/routes/index.js or ts
+  write(`src/routes/index.${ext}`, `
+import { Router } from 'express';
+
+const router = Router();
 
 // ── Register your routes here ──────────────────────────────────────────────
-// Example: router.use('/users', require('./user.routes'));
+// Example: router.use('/users', userRoutes);
 
-module.exports = router;
+export default router;
 `);
 
-  // src/config/index.js
-  write('src/config/index.js', `
-'use strict';
+  // src/config/index.js or ts
+  if (isTs) {
+    write(`src/config/index.${ext}`, `
+export const config = {
+  app: {
+    name: process.env.APP_NAME || '${projectName}',
+    env: process.env.NODE_ENV || 'development',
+    port: parseInt(process.env.PORT || '3000', 10),
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET || 'change_me',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  },
+  database: {
+    url: process.env.DATABASE_URL || '',
+  },
+};
 
-const config = {
+export default config;
+`);
+  } else {
+    write(`src/config/index.${ext}`, `
+export const config = {
   app: {
     name: process.env.APP_NAME || '${projectName}',
     env: process.env.NODE_ENV || 'development',
@@ -273,24 +412,28 @@ const config = {
   },
 };
 
-module.exports = config;
+export default config;
 `);
+  }
 
-  // src/middleware/errorHandler.js
-  write('src/middleware/errorHandler.js', `
-'use strict';
-
-const { AppError } = require('../errors/AppError');
+  // src/middleware/errorHandler.js or ts
+  if (isTs) {
+    write(`src/middleware/errorHandler.${ext}`, `
+import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../errors/AppError.js';
+import { logErrorToFile } from '../utils/logger.js';
 
 /**
- * Global error handler — must be the last middleware
+ * Global error handler — automatically logs all system errors to logs/error-YYYY-MM-DD.txt
  */
-function globalErrorHandler(err, req, res, next) {
-  let statusCode = err.statusCode || 500;
-  let message = err.message || 'Internal Server Error';
-  let errors = err.errors || undefined;
+export function globalErrorHandler(err: any, req: Request, res: Response, next: NextFunction): Response | void {
+  // Automatically write system error to txt file in logs/ folder
+  logErrorToFile(err, req);
 
-  // Operational errors (trusted)
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+  const errors = err.errors || undefined;
+
   if (err instanceof AppError) {
     return res.status(statusCode).json({
       success: false,
@@ -299,7 +442,6 @@ function globalErrorHandler(err, req, res, next) {
     });
   }
 
-  // Unexpected errors
   if (process.env.NODE_ENV === 'development') {
     console.error('Unhandled Error:', err);
     return res.status(500).json({
@@ -309,35 +451,127 @@ function globalErrorHandler(err, req, res, next) {
     });
   }
 
-  // Production — don't leak details
   return res.status(500).json({
     success: false,
     message: 'Something went wrong',
   });
 }
-
-module.exports = { globalErrorHandler };
 `);
+  } else {
+    write(`src/middleware/errorHandler.${ext}`, `
+import { AppError } from '../errors/AppError.js';
+import { logErrorToFile } from '../utils/logger.js';
 
-  // src/middleware/notFound.js
-  write('src/middleware/notFound.js', `
-'use strict';
+/**
+ * Global error handler — automatically logs all system errors to logs/error-YYYY-MM-DD.txt
+ */
+export function globalErrorHandler(err, req, res, next) {
+  // Automatically write system error to txt file in logs/ folder
+  logErrorToFile(err, req);
 
-function notFoundHandler(req, res) {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+  const errors = err.errors || undefined;
+
+  if (err instanceof AppError) {
+    return res.status(statusCode).json({
+      success: false,
+      message,
+      ...(errors && { errors }),
+    });
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Unhandled Error:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      stack: err.stack,
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    message: 'Something went wrong',
+  });
+}
+`);
+  }
+
+  // src/middleware/notFound.js or ts
+  if (isTs) {
+    write(`src/middleware/notFound.${ext}`, `
+import { Request, Response } from 'express';
+
+export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({
     success: false,
     message: \`Route \${req.method} \${req.originalUrl} not found\`,
   });
 }
-
-module.exports = { notFoundHandler };
 `);
+  } else {
+    write(`src/middleware/notFound.${ext}`, `
+export function notFoundHandler(req, res) {
+  res.status(404).json({
+    success: false,
+    message: \`Route \${req.method} \${req.originalUrl} not found\`,
+  });
+}
+`);
+  }
 
-  // src/errors/AppError.js
-  write('src/errors/AppError.js', `
-'use strict';
+  // src/errors/AppError.js or ts
+  if (isTs) {
+    write(`src/errors/AppError.${ext}`, `
+export class AppError extends Error {
+  public statusCode: number;
+  public isOperational: boolean;
+  public errors: any;
 
-class AppError extends Error {
+  constructor(message: string, statusCode = 500, errors = null) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;
+    this.errors = errors;
+    Object.setPrototypeOf(this, new.target.prototype);
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message = 'Resource not found') {
+    super(message, 404);
+  }
+}
+
+export class BadRequestError extends AppError {
+  constructor(message = 'Bad request', errors = null) {
+    super(message, 400, errors);
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Unauthorized') {
+    super(message, 401);
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'Forbidden') {
+    super(message, 403);
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message = 'Conflict') {
+    super(message, 409);
+  }
+}
+`);
+  } else {
+    write(`src/errors/AppError.${ext}`, `
+export class AppError extends Error {
   constructor(message, statusCode = 500, errors = null) {
     super(message);
     this.statusCode = statusCode;
@@ -347,78 +581,78 @@ class AppError extends Error {
   }
 }
 
-class NotFoundError extends AppError {
+export class NotFoundError extends AppError {
   constructor(message = 'Resource not found') {
     super(message, 404);
   }
 }
 
-class BadRequestError extends AppError {
+export class BadRequestError extends AppError {
   constructor(message = 'Bad request', errors = null) {
     super(message, 400, errors);
   }
 }
 
-class UnauthorizedError extends AppError {
+export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
     super(message, 401);
   }
 }
 
-class ForbiddenError extends AppError {
+export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
     super(message, 403);
   }
 }
 
-class ConflictError extends AppError {
+export class ConflictError extends AppError {
   constructor(message = 'Conflict') {
     super(message, 409);
   }
 }
-
-module.exports = {
-  AppError,
-  NotFoundError,
-  BadRequestError,
-  UnauthorizedError,
-  ForbiddenError,
-  ConflictError,
-};
 `);
+  }
 
-  // src/utils/response.js
-  write('src/utils/response.js', `
-'use strict';
+  // src/utils/response.js or ts
+  if (isTs) {
+    write(`src/utils/response.${ext}`, `
+import { Response } from 'express';
 
-/**
- * Send a successful JSON response
- */
-function sendSuccess(res, data = null, message = 'Success', statusCode = 200) {
-  const payload = { success: true, message };
+export function sendSuccess(res: Response, data: any = null, message = 'Success', statusCode = 200): Response {
+  const payload: Record<string, any> = { success: true, message };
   if (data !== null) payload.data = data;
   return res.status(statusCode).json(payload);
 }
 
-/**
- * Send a paginated JSON response
- */
-function sendPaginated(res, data, pagination) {
+export function sendPaginated(res: Response, data: any, pagination: any): Response {
   return res.status(200).json({
     success: true,
     data,
     pagination,
   });
 }
-
-module.exports = { sendSuccess, sendPaginated };
 `);
+  } else {
+    write(`src/utils/response.${ext}`, `
+export function sendSuccess(res, data = null, message = 'Success', statusCode = 200) {
+  const payload = { success: true, message };
+  if (data !== null) payload.data = data;
+  return res.status(statusCode).json(payload);
+}
 
-  // src/constants/index.js
-  write('src/constants/index.js', `
-'use strict';
+export function sendPaginated(res, data, pagination) {
+  return res.status(200).json({
+    success: true,
+    data,
+    pagination,
+  });
+}
+`);
+  }
 
-const HTTP_STATUS = {
+  // src/constants/index.js or ts
+  write(`src/constants/index.${ext}`, `
+export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
   NO_CONTENT: 204,
@@ -430,28 +664,16 @@ const HTTP_STATUS = {
   UNPROCESSABLE: 422,
   INTERNAL: 500,
 };
-
-module.exports = { HTTP_STATUS };
 `);
 
-  // src/database/index.js
-  write('src/database/index.js', `
-'use strict';
-
-// TODO: configure your database connection here
-// Example for Prisma:
-// const { PrismaClient } = require('@prisma/client');
-// const prisma = new PrismaClient();
-// module.exports = { prisma };
-
-module.exports = {};
-`);
+  // src/database/index.js or ts
+  write(`src/database/index.${ext}`, templates.dbTemplate(database, isTs));
 
   // README.md
-  write('README.md', buildReadme(projectName, database, validation));
+  write('README.md', buildReadme(projectName, database, validation, isTs));
 }
 
-function buildDependencies(database, validation) {
+function buildDependencies(database, validation, isTs) {
   const prod = {
     express: '^4.19.2',
     dotenv: '^16.4.5',
@@ -468,6 +690,10 @@ function buildDependencies(database, validation) {
     prod['mongoose'] = '^8.4.0';
   } else if (database === 'drizzle') {
     prod['drizzle-orm'] = '^0.31.0';
+  } else if (database === 'sqlite') {
+    prod['better-sqlite3'] = '^9.6.0';
+  } else if (database === 'mysql') {
+    prod['mysql2'] = '^3.9.8';
   }
 
   if (validation === 'zod') {
@@ -482,10 +708,22 @@ function buildDependencies(database, validation) {
     nodemon: '^3.1.4',
   };
 
+  if (isTs) {
+    dev['typescript'] = '^5.4.5';
+    dev['ts-node-dev'] = '^2.0.0';
+    dev['@types/node'] = '^20.12.12';
+    dev['@types/express'] = '^4.17.21';
+    dev['@types/cors'] = '^2.8.17';
+    dev['@types/morgan'] = '^1.9.9';
+    if (database === 'sqlite') {
+      dev['@types/better-sqlite3'] = '^7.6.10';
+    }
+  }
+
   return { prod, dev };
 }
 
-function buildReadme(projectName, database, validation) {
+function buildReadme(projectName, database, validation, isTs) {
   return `# ${projectName}
 
 > A clean, scalable Express.js API generated by **create-clean-express**
@@ -511,11 +749,12 @@ src/
 ├── services/       # Business logic layer
 ├── validators/     # Input validation
 ├── models/         # Data models
-├── utils/          # Utilities
+├── utils/          # Utilities (includes logger writing to logs/)
 ├── errors/         # Custom error classes
 ├── database/       # Database connection
-├── app.js          # Express app setup
-└── server.js       # Server entry point
+├── app.${isTs ? 'ts' : 'js'}          # Express app setup
+└── server.${isTs ? 'ts' : 'js'}       # Server entry point
+logs/               # Auto-generated error log text files (.txt format)
 \`\`\`
 
 ## ⚡ Generate Code
@@ -542,6 +781,7 @@ cex add docker
 
 ## 🔧 Configuration
 
+- **Language**: ${isTs ? 'TypeScript' : 'JavaScript (ESM)'}
 - **Database**: ${database}
 - **Validation**: ${validation}
 - Config file: \`cex.config.json\`
@@ -551,5 +791,3 @@ cex add docker
 \`GET /health\` — Returns server status and timestamp.
 `;
 }
-
-module.exports = { newCommand };

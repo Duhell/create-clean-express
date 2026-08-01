@@ -1,12 +1,18 @@
 #!/usr/bin/env node
-'use strict';
 
-const { program } = require('commander');
-const chalk = require('chalk');
-const { newCommand } = require('../src/commands/new');
-const { makeCommand } = require('../src/commands/make');
-const { addCommand } = require('../src/commands/add');
-const { version } = require('../package.json');
+import { program } from 'commander';
+import chalk from 'chalk';
+import enquirer from 'enquirer';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { newCommand } from '../src/commands/new.js';
+import { makeCommand } from '../src/commands/make.js';
+import { addCommand } from '../src/commands/add.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const pkg = fs.readJsonSync(path.join(__dirname, '../package.json'));
 
 console.log(chalk.cyan.bold('\n  ╔═══════════════════════════════╗'));
 console.log(chalk.cyan.bold('  ║   Clean Express CLI  (cex)    ║'));
@@ -15,17 +21,57 @@ console.log(chalk.cyan.bold('  ╚═══════════════�
 program
   .name('cex')
   .description('An opinionated CLI for building clean, scalable Express.js APIs')
-  .version(version, '-v, --version', 'Output the current version');
+  .version(pkg.version, '-v, --version', 'Output the current version');
 
 // cex new <project-name>
 program
   .command('new <projectName>')
   .description('Create a new Express project with clean architecture')
-  .option('--database <type>', 'Database adapter (prisma|sequelize|mongoose|drizzle|none)', 'none')
+  .option('--database <type>', 'Database adapter (sqlite|mysql|prisma|sequelize|mongoose|drizzle|none)')
+  .option('--typescript', 'Use TypeScript for the scaffolded project')
   .option('--validation <lib>', 'Validation library (zod|joi|express-validator|none)', 'none')
   .option('--no-install', 'Skip npm install')
   .option('--no-git', 'Skip git init')
-  .action(newCommand);
+  .action(async (projectName, options) => {
+    let database = options.database;
+    let typescript = options.typescript;
+
+    // Ask for Database if not specified via flag
+    if (!database) {
+      const response = await enquirer.prompt({
+        type: 'select',
+        name: 'database',
+        message: 'Select a database adapter:',
+        choices: [
+          { name: 'sqlite', message: 'SQLite (better-sqlite3)' },
+          { name: 'mysql', message: 'MySQL (mysql2)' },
+          { name: 'prisma', message: 'Prisma ORM' },
+          { name: 'sequelize', message: 'Sequelize ORM' },
+          { name: 'mongoose', message: 'Mongoose (MongoDB)' },
+          { name: 'drizzle', message: 'Drizzle ORM' },
+          { name: 'none', message: 'None' },
+        ],
+      });
+      database = response.database;
+    }
+
+    // Ask for TypeScript option if not specified via flag
+    if (typescript === undefined) {
+      const response = await enquirer.prompt({
+        type: 'confirm',
+        name: 'typescript',
+        message: 'Would you like to use TypeScript?',
+        initial: true,
+      });
+      typescript = response.typescript;
+    }
+
+    await newCommand(projectName, {
+      ...options,
+      database,
+      typescript,
+    });
+  });
 
 // cex make <type> <name>
 const make = program
