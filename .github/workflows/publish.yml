@@ -34,7 +34,7 @@ jobs:
           node ../bin/cex.js make resource User
           test -f src/controllers/UserController.js
           test -f src/services/UserService.js
-          test -f src/repositories/UserRepository.js
+          test -f src/models/UserModel.js
           echo "Smoke test passed ✔"
 
       - name: Publish to npm

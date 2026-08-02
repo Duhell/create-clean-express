@@ -1,6 +1,6 @@
 {
   "name": "create-clean-express",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "An opinionated CLI for Express.js that helps developers create clean, scalable backend APIs using a layered architecture.",
   "bin": {
     "cex": "./bin/cex.js",

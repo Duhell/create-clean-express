@@ -49,7 +49,7 @@ jobs:
         run: |
           test -f smoke-test/src/controllers/UserController.js
           test -f smoke-test/src/services/UserService.js
-          test -f smoke-test/src/repositories/UserRepository.js
+          test -f smoke-test/src/models/UserModel.js
           test -f smoke-test/src/routes/user.routes.js
           test -f smoke-test/src/controllers/AuthController.js
           test -f smoke-test/src/middleware/AuthMiddleware.js
@@ -67,7 +67,20 @@ jobs:
         run: |
           test -f smoke-test-ts/src/controllers/UserController.ts
           test -f smoke-test-ts/src/services/UserService.ts
-          test -f smoke-test-ts/src/repositories/UserRepository.ts
+          test -f smoke-test-ts/src/models/UserModel.ts
           test -f smoke-test-ts/src/routes/user.routes.ts
           test -f smoke-test-ts/src/utils/logger.ts
           echo "All expected TS files exist ✔"
+
+      - name: Smoke test — repository pattern
+        run: node bin/cex.js new smoke-test-repo --pattern repository --no-install --no-git
+
+      - name: Smoke test — generate a resource (Repository Pattern)
+        working-directory: smoke-test-repo
+        run: node ../bin/cex.js make resource Order
+
+      - name: Verify repository pattern files exist
+        run: |
+          test -f smoke-test-repo/src/controllers/OrderController.js
+          test -f smoke-test-repo/src/repositories/OrderRepository.js
+          echo "Repository pattern files exist ✔"
