@@ -364,16 +364,47 @@ export default server;
   }
 
   // src/routes/index.js or ts
-  write(`src/routes/index.${ext}`, `
-import { Router } from 'express';
+  if (isTs) {
+    write(`src/routes/index.${ext}`, `
+import { Router, Request, Response } from 'express';
 
 const router = Router();
+
+// ── Sample route ───────────────────────────────────────────────────────────
+router.get('/', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'connected to backend successfully' });
+});
+
+router.get('/sample', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'connected to backend successfully' });
+});
 
 // ── Register your routes here ──────────────────────────────────────────────
 // Example: router.use('/users', userRoutes);
 
 export default router;
 `);
+  } else {
+    write(`src/routes/index.${ext}`, `
+import { Router } from 'express';
+
+const router = Router();
+
+// ── Sample route ───────────────────────────────────────────────────────────
+router.get('/', (req, res) => {
+  res.status(200).json({ message: 'connected to backend successfully' });
+});
+
+router.get('/sample', (req, res) => {
+  res.status(200).json({ message: 'connected to backend successfully' });
+});
+
+// ── Register your routes here ──────────────────────────────────────────────
+// Example: router.use('/users', userRoutes);
+
+export default router;
+`);
+  }
 
   // src/config/index.js or ts
   if (isTs) {
@@ -767,6 +798,7 @@ cex make resource User
 cex make controller User
 cex make service User
 cex make repository User
+cex make route User
 cex make middleware Auth
 cex make validator User
 cex make error NotFound

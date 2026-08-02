@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-08-02
+
+### Added
+
+- **Sample Route**: Scaffolded projects now include a sample route (`GET /` and `GET /sample`) returning HTTP status `200` with JSON message `{ "message": "connected to backend successfully" }`.
+- **`cex make route <name>`**: Added new CLI command to generate a standalone route file (`src/routes/<name>.routes.js` or `.ts`) with RESTful endpoint handlers and automatic route registration in `src/routes/index.js` (or `index.ts`).
+
+---
+
 ## [0.2.0] - 2026-08-01
 
 ### Changed
@@ -53,5 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoint (`GET /health`)
 - Swagger JSDoc annotations on all generated routes
 
+[0.2.1]: https://github.com/Duhell/create-clean-express/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Duhell/create-clean-express/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Duhell/create-clean-express/releases/tag/v0.1.0

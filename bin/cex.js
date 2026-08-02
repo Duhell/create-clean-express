@@ -111,6 +111,11 @@ make
   .action((name) => makeCommand('repository', name));
 
 make
+  .command('route <name>')
+  .description('Generate a route and auto-import in routes/index.js')
+  .action((name) => makeCommand('route', name));
+
+make
   .command('middleware <name>')
   .description('Generate a middleware')
   .action((name) => makeCommand('middleware', name));

@@ -509,6 +509,137 @@ export default router;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Standalone Route template (for cex make route)
+// ─────────────────────────────────────────────────────────────────────────────
+export function standaloneRoute(pascal, camel, kebab, isTs = false) {
+  const routePath = kebab.endsWith('s') ? `/${kebab}` : `/${kebab}s`;
+  if (isTs) {
+    return `import { Router, Request, Response } from 'express';
+
+const router = Router();
+
+/**
+ * GET /api/v1${routePath}
+ */
+router.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: 'GET ${routePath} response',
+    data: [],
+  });
+});
+
+/**
+ * GET /api/v1${routePath}/:id
+ */
+router.get('/:id', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: \`GET ${routePath}/\${req.params.id} response\`,
+    data: { id: req.params.id },
+  });
+});
+
+/**
+ * POST /api/v1${routePath}
+ */
+router.post('/', (req: Request, res: Response) => {
+  res.status(201).json({
+    success: true,
+    message: '${pascal} created successfully',
+    data: req.body,
+  });
+});
+
+/**
+ * PUT /api/v1${routePath}/:id
+ */
+router.put('/:id', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: \`${pascal} updated successfully\`,
+    data: { id: req.params.id, ...req.body },
+  });
+});
+
+/**
+ * DELETE /api/v1${routePath}/:id
+ */
+router.delete('/:id', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: '${pascal} deleted successfully',
+  });
+});
+
+export default router;
+`;
+  }
+
+  return `import { Router } from 'express';
+
+const router = Router();
+
+/**
+ * GET /api/v1${routePath}
+ */
+router.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'GET ${routePath} response',
+    data: [],
+  });
+});
+
+/**
+ * GET /api/v1${routePath}/:id
+ */
+router.get('/:id', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: \`GET ${routePath}/\${req.params.id} response\`,
+    data: { id: req.params.id },
+  });
+});
+
+/**
+ * POST /api/v1${routePath}
+ */
+router.post('/', (req, res) => {
+  res.status(201).json({
+    success: true,
+    message: '${pascal} created successfully',
+    data: req.body,
+  });
+});
+
+/**
+ * PUT /api/v1${routePath}/:id
+ */
+router.put('/:id', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: \`${pascal} updated successfully\`,
+    data: { id: req.params.id, ...req.body },
+  });
+});
+
+/**
+ * DELETE /api/v1${routePath}/:id
+ */
+router.delete('/:id', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: '${pascal} deleted successfully',
+  });
+});
+
+export default router;
+`;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Utility template
 // ─────────────────────────────────────────────────────────────────────────────
 export function util(pascal, isTs = false) {

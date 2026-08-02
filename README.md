@@ -70,6 +70,7 @@ Generate individual components inside an existing project.
 cex make controller User
 cex make service User
 cex make repository User
+cex make route User
 cex make middleware Auth
 cex make validator User
 cex make util Hash

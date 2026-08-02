@@ -57,6 +57,10 @@ export async function makeCommand(type, name) {
       generate(srcDir, 'errors', `${pascal}Error.${ext}`, templates.error(pascal, isTs));
       break;
 
+    case 'route':
+      generateRoute(srcDir, name, isTs, ext);
+      break;
+
     case 'resource':
       generateResource(srcDir, pascal, camel, kebab, isTs, ext);
       break;
@@ -91,6 +95,23 @@ function generate(srcDir, folder, filename, content) {
   }
   fs.outputFileSync(filePath, content);
   logger.success(`Created: src/${folder}/${filename}`);
+}
+
+function generateRoute(srcDir, name, isTs, ext) {
+  let cleanName = name.replace(/\.(routes?|js|ts)$/i, '');
+  cleanName = cleanName.replace(/[-_]routes?$/i, '');
+
+  const pascal = toPascalCase(cleanName);
+  const camel = toCamelCase(cleanName);
+  const kebab = toKebabCase(cleanName);
+
+  const controllerExists = fs.existsSync(path.join(srcDir, 'controllers', `${pascal}Controller.${ext}`));
+  const routeContent = controllerExists
+    ? templates.route(pascal, camel, kebab, isTs)
+    : (templates.standaloneRoute ? templates.standaloneRoute(pascal, camel, kebab, isTs) : templates.route(pascal, camel, kebab, isTs));
+
+  generate(srcDir, 'routes', `${kebab}.routes.${ext}`, routeContent);
+  updateRoutesIndex(srcDir, pascal, kebab, ext);
 }
 
 function generateResource(srcDir, pascal, camel, kebab, isTs, ext) {
@@ -144,8 +165,8 @@ function updateRoutesIndex(srcDir, pascal, kebab, ext) {
   }
 
   let content = fs.readFileSync(indexPath, 'utf8');
-  const routePath = `/${kebab}s`;
-  const varName = kebab.replace(/-/g, '') + 'Routes';
+  const routePath = kebab.endsWith('s') ? `/${kebab}` : `/${kebab}s`;
+  const varName = toCamelCase(kebab) + 'Routes';
   const importLine = `import ${varName} from './${kebab}.routes.js';`;
   const useLine = `router.use('${routePath}', ${varName});`;
 
