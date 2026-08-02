@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { newCommand } from '../src/commands/new.js';
 import { makeCommand } from '../src/commands/make.js';
 import { addCommand } from '../src/commands/add.js';
+import { migrateCommand } from '../src/commands/migrate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +29,7 @@ program
   .command('new <projectName>')
   .description('Create a new Express project with clean architecture')
   .option('--database <type>', 'Database adapter (sqlite|mysql|prisma|sequelize|mongoose|drizzle|none)')
+  .option('--pattern <type>', 'Architecture pattern (service-model|repository)', 'service-model')
   .option('--typescript', 'Use TypeScript for the scaffolded project')
   .option('--validation <lib>', 'Validation library (zod|joi|express-validator|none)', 'none')
   .option('--no-install', 'Skip npm install')
@@ -106,6 +108,16 @@ make
   .action((name) => makeCommand('service', name));
 
 make
+  .command('model <name>')
+  .description('Generate a model')
+  .action((name) => makeCommand('model', name));
+
+make
+  .command('migration <name>')
+  .description('Generate a database migration')
+  .action((name) => makeCommand('migration', name));
+
+make
   .command('repository <name>')
   .description('Generate a repository')
   .action((name) => makeCommand('repository', name));
@@ -137,7 +149,7 @@ make
 
 make
   .command('resource <name>')
-  .description('Generate a full resource (controller, service, repository, validator, route)')
+  .description('Generate a full resource (controller, service, model, validator, route)')
   .action((name) => makeCommand('resource', name));
 
 make
@@ -149,6 +161,12 @@ make
   .command('test <name>')
   .description('Generate test files for a resource')
   .action((name) => makeCommand('test', name));
+
+// cex migrate
+program
+  .command('migrate')
+  .description('Run pending database migrations')
+  .action(migrateCommand);
 
 // cex add <plugin>
 program

@@ -41,10 +41,12 @@ cex new my-api
 
 ### `cex new <project-name>`
 
-Scaffold a new Express project with the full clean architecture layout.
+Scaffold a new Express project with clean architecture.
 
 ```bash
 cex new my-api
+cex new my-api --pattern service-model
+cex new my-api --pattern repository
 cex new my-api --database prisma
 cex new my-api --database mongoose --validation zod
 cex new my-api --no-install --no-git
@@ -54,7 +56,8 @@ cex new my-api --no-install --no-git
 
 | Flag | Description | Default |
 |---|---|---|
-| `--database <type>` | `prisma` \| `sequelize` \| `mongoose` \| `drizzle` \| `none` | `none` |
+| `--pattern <type>` | `service-model` (default clean pattern) \| `repository` | `service-model` |
+| `--database <type>` | `sqlite` \| `mysql` \| `prisma` \| `sequelize` \| `mongoose` \| `drizzle` \| `none` | `none` |
 | `--validation <lib>` | `zod` \| `joi` \| `express-validator` \| `none` | `none` |
 | `--no-install` | Skip `npm install` | — |
 | `--no-git` | Skip `git init` | — |
@@ -69,14 +72,16 @@ Generate individual components inside an existing project.
 # Single generators
 cex make controller User
 cex make service User
-cex make repository User
+cex make model User
+cex make migration create_users_table
 cex make route User
+cex make repository User
 cex make middleware Auth
 cex make validator User
 cex make util Hash
 cex make error NotFound
 
-# Full resource (all layers + route, auto-registers in routes/index.js)
+# Full resource (controller, service, model, validator, route, auto-registers in routes/index.js)
 cex make resource User
 
 # Complete authentication module (JWT)
@@ -84,6 +89,16 @@ cex make auth
 
 # Test stubs
 cex make test User
+```
+
+---
+
+### `cex migrate`
+
+Run pending database migrations from `src/database/migrations/`.
+
+```bash
+cex migrate
 ```
 
 ---

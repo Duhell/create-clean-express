@@ -6,6 +6,8 @@ import { toPascalCase, toCamelCase, toKebabCase } from '../utils/strings.js';
 import { findProjectRoot, loadConfig } from '../utils/project.js';
 import * as templates from '../templates/index.js';
 
+import { makeMigrationCommand } from './migrate.js';
+
 /**
  * Main dispatcher for `cex make <type> <name>`
  */
@@ -41,6 +43,14 @@ export async function makeCommand(type, name) {
       generate(srcDir, 'repositories', `${pascal}Repository.${ext}`, templates.repository(pascal, camel, isTs));
       break;
 
+    case 'model':
+      generate(srcDir, 'models', `${pascal}Model.${ext}`, templates.model(pascal, camel, kebab, isTs));
+      break;
+
+    case 'migration':
+      await makeMigrationCommand(name);
+      return;
+
     case 'middleware':
       generate(srcDir, 'middleware', `${pascal}Middleware.${ext}`, templates.middleware(pascal, camel, isTs));
       break;
@@ -62,7 +72,7 @@ export async function makeCommand(type, name) {
       break;
 
     case 'resource':
-      generateResource(srcDir, pascal, camel, kebab, isTs, ext);
+      generateResource(srcDir, pascal, camel, kebab, isTs, ext, config);
       break;
 
     case 'auth':
@@ -114,10 +124,15 @@ function generateRoute(srcDir, name, isTs, ext) {
   updateRoutesIndex(srcDir, pascal, kebab, ext);
 }
 
-function generateResource(srcDir, pascal, camel, kebab, isTs, ext) {
+function generateResource(srcDir, pascal, camel, kebab, isTs, ext, config = {}) {
   generate(srcDir, 'controllers', `${pascal}Controller.${ext}`, templates.controller(pascal, camel, isTs));
   generate(srcDir, 'services', `${pascal}Service.${ext}`, templates.service(pascal, camel, isTs));
-  generate(srcDir, 'repositories', `${pascal}Repository.${ext}`, templates.repository(pascal, camel, isTs));
+  generate(srcDir, 'models', `${pascal}Model.${ext}`, templates.model(pascal, camel, kebab, isTs));
+
+  if (config.pattern === 'repository') {
+    generate(srcDir, 'repositories', `${pascal}Repository.${ext}`, templates.repository(pascal, camel, isTs));
+  }
+
   generate(srcDir, 'validators', `${pascal}Validator.${ext}`, templates.validator(pascal, camel, isTs));
   generate(srcDir, 'routes', `${kebab}.routes.${ext}`, templates.route(pascal, camel, kebab, isTs));
 

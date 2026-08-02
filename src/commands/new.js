@@ -10,6 +10,7 @@ export async function newCommand(projectName, options = {}) {
   const {
     database = 'none',
     validation = 'none',
+    pattern = 'service-model',
     typescript = false,
     install = true,
     git = true,
@@ -22,6 +23,7 @@ export async function newCommand(projectName, options = {}) {
   logger.section('Creating new Express project');
   logger.info(`Project: ${chalk.bold(projectName)}`);
   logger.info(`Language: ${chalk.bold(isTs ? 'TypeScript' : 'JavaScript (ESM)')}`);
+  logger.info(`Pattern: ${chalk.bold(pattern)}`);
   logger.info(`Database: ${chalk.bold(database)}`);
   logger.info(`Validation: ${chalk.bold(validation)}`);
   logger.newline();
@@ -41,7 +43,6 @@ export async function newCommand(projectName, options = {}) {
       'src/constants',
       'src/controllers',
       'src/middleware',
-      'src/repositories',
       'src/routes',
       'src/services',
       'src/validators',
@@ -49,9 +50,14 @@ export async function newCommand(projectName, options = {}) {
       'src/utils',
       'src/errors',
       'src/database',
+      'src/database/migrations',
       'tests',
       'logs',
     ];
+
+    if (pattern === 'repository') {
+      dirs.push('src/repositories');
+    }
 
     for (const dir of dirs) {
       fs.mkdirpSync(path.join(targetDir, dir));
@@ -67,6 +73,7 @@ export async function newCommand(projectName, options = {}) {
       language: isTs ? 'typescript' : 'javascript',
       module: 'esm',
       architecture: 'layered',
+      pattern,
       database,
       validation,
       testing: 'jest',
@@ -363,20 +370,24 @@ export default server;
 `);
   }
 
+  // src/models/BaseModel.js or ts
+  write(`src/models/BaseModel.${ext}`, templates.baseModel(isTs));
+
   // src/routes/index.js or ts
   if (isTs) {
     write(`src/routes/index.${ext}`, `
 import { Router, Request, Response } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
 const router = Router();
 
 // ── Sample route ───────────────────────────────────────────────────────────
 router.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ message: 'connected to backend successfully' });
+  res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
 router.get('/sample', (req: Request, res: Response) => {
-  res.status(200).json({ message: 'connected to backend successfully' });
+  res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
 // ── Register your routes here ──────────────────────────────────────────────
@@ -387,16 +398,17 @@ export default router;
   } else {
     write(`src/routes/index.${ext}`, `
 import { Router } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
 const router = Router();
 
 // ── Sample route ───────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
-  res.status(200).json({ message: 'connected to backend successfully' });
+  res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
 router.get('/sample', (req, res) => {
-  res.status(200).json({ message: 'connected to backend successfully' });
+  res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
 // ── Register your routes here ──────────────────────────────────────────────
@@ -453,6 +465,7 @@ export default config;
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/AppError.js';
 import { logErrorToFile } from '../utils/logger.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 /**
  * Global error handler — automatically logs all system errors to logs/error-YYYY-MM-DD.txt
@@ -461,7 +474,7 @@ export function globalErrorHandler(err: any, req: Request, res: Response, next: 
   // Automatically write system error to txt file in logs/ folder
   logErrorToFile(err, req);
 
-  const statusCode = err.statusCode || 500;
+  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL;
   const message = err.message || 'Internal Server Error';
   const errors = err.errors || undefined;
 
@@ -475,14 +488,14 @@ export function globalErrorHandler(err: any, req: Request, res: Response, next: 
 
   if (process.env.NODE_ENV === 'development') {
     console.error('Unhandled Error:', err);
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL).json({
       success: false,
       message: err.message,
       stack: err.stack,
     });
   }
 
-  return res.status(500).json({
+  return res.status(HTTP_STATUS.INTERNAL).json({
     success: false,
     message: 'Something went wrong',
   });
@@ -492,6 +505,7 @@ export function globalErrorHandler(err: any, req: Request, res: Response, next: 
     write(`src/middleware/errorHandler.${ext}`, `
 import { AppError } from '../errors/AppError.js';
 import { logErrorToFile } from '../utils/logger.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 /**
  * Global error handler — automatically logs all system errors to logs/error-YYYY-MM-DD.txt
@@ -500,7 +514,7 @@ export function globalErrorHandler(err, req, res, next) {
   // Automatically write system error to txt file in logs/ folder
   logErrorToFile(err, req);
 
-  const statusCode = err.statusCode || 500;
+  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL;
   const message = err.message || 'Internal Server Error';
   const errors = err.errors || undefined;
 
@@ -514,14 +528,14 @@ export function globalErrorHandler(err, req, res, next) {
 
   if (process.env.NODE_ENV === 'development') {
     console.error('Unhandled Error:', err);
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL).json({
       success: false,
       message: err.message,
       stack: err.stack,
     });
   }
 
-  return res.status(500).json({
+  return res.status(HTTP_STATUS.INTERNAL).json({
     success: false,
     message: 'Something went wrong',
   });
@@ -533,9 +547,10 @@ export function globalErrorHandler(err, req, res, next) {
   if (isTs) {
     write(`src/middleware/notFound.${ext}`, `
 import { Request, Response } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
 export function notFoundHandler(req: Request, res: Response): void {
-  res.status(404).json({
+  res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
     message: \`Route \${req.method} \${req.originalUrl} not found\`,
   });
@@ -543,8 +558,10 @@ export function notFoundHandler(req: Request, res: Response): void {
 `);
   } else {
     write(`src/middleware/notFound.${ext}`, `
+import { HTTP_STATUS } from '../constants/index.js';
+
 export function notFoundHandler(req, res) {
-  res.status(404).json({
+  res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
     message: \`Route \${req.method} \${req.originalUrl} not found\`,
   });
@@ -555,12 +572,14 @@ export function notFoundHandler(req, res) {
   // src/errors/AppError.js or ts
   if (isTs) {
     write(`src/errors/AppError.${ext}`, `
+import { HTTP_STATUS } from '../constants/index.js';
+
 export class AppError extends Error {
   public statusCode: number;
   public isOperational: boolean;
   public errors: any;
 
-  constructor(message: string, statusCode = 500, errors = null) {
+  constructor(message: string, statusCode = HTTP_STATUS.INTERNAL, errors = null) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
@@ -572,38 +591,40 @@ export class AppError extends Error {
 
 export class NotFoundError extends AppError {
   constructor(message = 'Resource not found') {
-    super(message, 404);
+    super(message, HTTP_STATUS.NOT_FOUND);
   }
 }
 
 export class BadRequestError extends AppError {
   constructor(message = 'Bad request', errors = null) {
-    super(message, 400, errors);
+    super(message, HTTP_STATUS.BAD_REQUEST, errors);
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
-    super(message, 401);
+    super(message, HTTP_STATUS.UNAUTHORIZED);
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
-    super(message, 403);
+    super(message, HTTP_STATUS.FORBIDDEN);
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message = 'Conflict') {
-    super(message, 409);
+    super(message, HTTP_STATUS.CONFLICT);
   }
 }
 `);
   } else {
     write(`src/errors/AppError.${ext}`, `
+import { HTTP_STATUS } from '../constants/index.js';
+
 export class AppError extends Error {
-  constructor(message, statusCode = 500, errors = null) {
+  constructor(message, statusCode = HTTP_STATUS.INTERNAL, errors = null) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
@@ -614,31 +635,31 @@ export class AppError extends Error {
 
 export class NotFoundError extends AppError {
   constructor(message = 'Resource not found') {
-    super(message, 404);
+    super(message, HTTP_STATUS.NOT_FOUND);
   }
 }
 
 export class BadRequestError extends AppError {
   constructor(message = 'Bad request', errors = null) {
-    super(message, 400, errors);
+    super(message, HTTP_STATUS.BAD_REQUEST, errors);
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
-    super(message, 401);
+    super(message, HTTP_STATUS.UNAUTHORIZED);
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
-    super(message, 403);
+    super(message, HTTP_STATUS.FORBIDDEN);
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message = 'Conflict') {
-    super(message, 409);
+    super(message, HTTP_STATUS.CONFLICT);
   }
 }
 `);
@@ -648,15 +669,16 @@ export class ConflictError extends AppError {
   if (isTs) {
     write(`src/utils/response.${ext}`, `
 import { Response } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
-export function sendSuccess(res: Response, data: any = null, message = 'Success', statusCode = 200): Response {
+export function sendSuccess(res: Response, data: any = null, message = 'Success', statusCode = HTTP_STATUS.OK): Response {
   const payload: Record<string, any> = { success: true, message };
   if (data !== null) payload.data = data;
   return res.status(statusCode).json(payload);
 }
 
 export function sendPaginated(res: Response, data: any, pagination: any): Response {
-  return res.status(200).json({
+  return res.status(HTTP_STATUS.OK).json({
     success: true,
     data,
     pagination,
@@ -665,14 +687,16 @@ export function sendPaginated(res: Response, data: any, pagination: any): Respon
 `);
   } else {
     write(`src/utils/response.${ext}`, `
-export function sendSuccess(res, data = null, message = 'Success', statusCode = 200) {
+import { HTTP_STATUS } from '../constants/index.js';
+
+export function sendSuccess(res, data = null, message = 'Success', statusCode = HTTP_STATUS.OK) {
   const payload = { success: true, message };
   if (data !== null) payload.data = data;
   return res.status(statusCode).json(payload);
 }
 
 export function sendPaginated(res, data, pagination) {
-  return res.status(200).json({
+  return res.status(HTTP_STATUS.OK).json({
     success: true,
     data,
     pagination,

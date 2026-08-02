@@ -8,28 +8,15 @@
 export function controller(pascal, camel, isTs = false) {
   if (isTs) {
     return `import { Request, Response, NextFunction } from 'express';
-import ${pascal}Service from '../services/${pascal}Service.js';
-import { sendSuccess, sendPaginated } from '../utils/response.js';
-import { NotFoundError } from '../errors/AppError.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 export class ${pascal}Controller {
   /**
    * GET /api/v1/${camel}s
-   * List all ${camel}s (paginated)
    */
   async index(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const page = parseInt(req.query.page as string, 10) || 1;
-      const limit = parseInt(req.query.limit as string, 10) || 10;
-
-      const { data, total } = await ${pascal}Service.findAll({ page, limit });
-
-      sendPaginated(res, data, {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      });
+      res.status(HTTP_STATUS.OK).json({ success: true, data: [] });
     } catch (err) {
       next(err);
     }
@@ -37,16 +24,11 @@ export class ${pascal}Controller {
 
   /**
    * GET /api/v1/${camel}s/:id
-   * Get a single ${camel}
    */
   async show(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const item = await ${pascal}Service.findById(id);
-
-      if (!item) throw new NotFoundError('${pascal} not found');
-
-      sendSuccess(res, item);
+      res.status(HTTP_STATUS.OK).json({ success: true, data: { id } });
     } catch (err) {
       next(err);
     }
@@ -54,12 +36,10 @@ export class ${pascal}Controller {
 
   /**
    * POST /api/v1/${camel}s
-   * Create a new ${camel}
    */
   async store(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const item = await ${pascal}Service.create(req.body);
-      sendSuccess(res, item, '${pascal} created successfully', 201);
+      res.status(HTTP_STATUS.CREATED).json({ success: true, message: '${pascal} created successfully', data: req.body });
     } catch (err) {
       next(err);
     }
@@ -67,16 +47,11 @@ export class ${pascal}Controller {
 
   /**
    * PUT /api/v1/${camel}s/:id
-   * Update an existing ${camel}
    */
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const item = await ${pascal}Service.update(id, req.body);
-
-      if (!item) throw new NotFoundError('${pascal} not found');
-
-      sendSuccess(res, item, '${pascal} updated successfully');
+      res.status(HTTP_STATUS.OK).json({ success: true, message: '${pascal} updated successfully', data: { id, ...req.body } });
     } catch (err) {
       next(err);
     }
@@ -84,13 +59,10 @@ export class ${pascal}Controller {
 
   /**
    * DELETE /api/v1/${camel}s/:id
-   * Delete a ${camel}
    */
   async destroy(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      await ${pascal}Service.delete(id);
-      sendSuccess(res, null, '${pascal} deleted successfully');
+      res.status(HTTP_STATUS.OK).json({ success: true, message: '${pascal} deleted successfully' });
     } catch (err) {
       next(err);
     }
@@ -101,28 +73,15 @@ export default new ${pascal}Controller();
 `;
   }
 
-  return `import ${pascal}Service from '../services/${pascal}Service.js';
-import { sendSuccess, sendPaginated } from '../utils/response.js';
-import { NotFoundError } from '../errors/AppError.js';
+  return `import { HTTP_STATUS } from '../constants/index.js';
 
 class ${pascal}Controller {
   /**
    * GET /api/v1/${camel}s
-   * List all ${camel}s (paginated)
    */
   async index(req, res, next) {
     try {
-      const page = parseInt(req.query.page, 10) || 1;
-      const limit = parseInt(req.query.limit, 10) || 10;
-
-      const { data, total } = await ${pascal}Service.findAll({ page, limit });
-
-      return sendPaginated(res, data, {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      });
+      return res.status(HTTP_STATUS.OK).json({ success: true, data: [] });
     } catch (err) {
       next(err);
     }
@@ -130,16 +89,11 @@ class ${pascal}Controller {
 
   /**
    * GET /api/v1/${camel}s/:id
-   * Get a single ${camel}
    */
   async show(req, res, next) {
     try {
       const { id } = req.params;
-      const item = await ${pascal}Service.findById(id);
-
-      if (!item) throw new NotFoundError('${pascal} not found');
-
-      return sendSuccess(res, item);
+      return res.status(HTTP_STATUS.OK).json({ success: true, data: { id } });
     } catch (err) {
       next(err);
     }
@@ -147,12 +101,10 @@ class ${pascal}Controller {
 
   /**
    * POST /api/v1/${camel}s
-   * Create a new ${camel}
    */
   async store(req, res, next) {
     try {
-      const item = await ${pascal}Service.create(req.body);
-      return sendSuccess(res, item, '${pascal} created successfully', 201);
+      return res.status(HTTP_STATUS.CREATED).json({ success: true, message: '${pascal} created successfully', data: req.body });
     } catch (err) {
       next(err);
     }
@@ -160,16 +112,11 @@ class ${pascal}Controller {
 
   /**
    * PUT /api/v1/${camel}s/:id
-   * Update an existing ${camel}
    */
   async update(req, res, next) {
     try {
       const { id } = req.params;
-      const item = await ${pascal}Service.update(id, req.body);
-
-      if (!item) throw new NotFoundError('${pascal} not found');
-
-      return sendSuccess(res, item, '${pascal} updated successfully');
+      return res.status(HTTP_STATUS.OK).json({ success: true, message: '${pascal} updated successfully', data: { id, ...req.body } });
     } catch (err) {
       next(err);
     }
@@ -177,13 +124,11 @@ class ${pascal}Controller {
 
   /**
    * DELETE /api/v1/${camel}s/:id
-   * Delete a ${camel}
    */
   async destroy(req, res, next) {
     try {
       const { id } = req.params;
-      await ${pascal}Service.delete(id);
-      return sendSuccess(res, null, '${pascal} deleted successfully');
+      return res.status(HTTP_STATUS.OK).json({ success: true, message: '${pascal} deleted successfully' });
     } catch (err) {
       next(err);
     }
@@ -199,53 +144,13 @@ export default new ${pascal}Controller();
 // ─────────────────────────────────────────────────────────────────────────────
 export function service(pascal, camel, isTs = false) {
   if (isTs) {
-    return `import ${pascal}Repository from '../repositories/${pascal}Repository.js';
-import { NotFoundError } from '../errors/AppError.js';
-
-export interface FindAllParams {
-  page?: number;
-  limit?: number;
-}
-
-export class ${pascal}Service {
+    return `export class ${pascal}Service {
   /**
-   * Get all ${camel}s with pagination
+   * Execute ${camel} business logic
    */
-  async findAll({ page = 1, limit = 10 }: FindAllParams = {}) {
-    const offset = (page - 1) * limit;
-    return ${pascal}Repository.findAll({ limit, offset });
-  }
-
-  /**
-   * Get a single ${camel} by id
-   */
-  async findById(id: string | number) {
-    const item = await ${pascal}Repository.findById(id);
-    if (!item) throw new NotFoundError('${pascal} not found');
-    return item;
-  }
-
-  /**
-   * Create a new ${camel}
-   */
-  async create(data: Record<string, any>) {
-    return ${pascal}Repository.create(data);
-  }
-
-  /**
-   * Update an existing ${camel}
-   */
-  async update(id: string | number, data: Record<string, any>) {
-    await this.findById(id);
-    return ${pascal}Repository.update(id, data);
-  }
-
-  /**
-   * Delete a ${camel}
-   */
-  async delete(id: string | number) {
-    await this.findById(id);
-    return ${pascal}Repository.delete(id);
+  async execute(data: any = {}): Promise<any> {
+    // TODO: implement business logic
+    return data;
   }
 }
 
@@ -253,48 +158,13 @@ export default new ${pascal}Service();
 `;
   }
 
-  return `import ${pascal}Repository from '../repositories/${pascal}Repository.js';
-import { NotFoundError } from '../errors/AppError.js';
-
-class ${pascal}Service {
+  return `class ${pascal}Service {
   /**
-   * Get all ${camel}s with pagination
+   * Execute ${camel} business logic
    */
-  async findAll({ page = 1, limit = 10 } = {}) {
-    const offset = (page - 1) * limit;
-    return ${pascal}Repository.findAll({ limit, offset });
-  }
-
-  /**
-   * Get a single ${camel} by id
-   */
-  async findById(id) {
-    const item = await ${pascal}Repository.findById(id);
-    if (!item) throw new NotFoundError('${pascal} not found');
-    return item;
-  }
-
-  /**
-   * Create a new ${camel}
-   */
-  async create(data) {
-    return ${pascal}Repository.create(data);
-  }
-
-  /**
-   * Update an existing ${camel}
-   */
-  async update(id, data) {
-    await this.findById(id);
-    return ${pascal}Repository.update(id, data);
-  }
-
-  /**
-   * Delete a ${camel}
-   */
-  async delete(id) {
-    await this.findById(id);
-    return ${pascal}Repository.delete(id);
+  async execute(data = {}) {
+    // TODO: implement business logic
+    return data;
   }
 }
 
@@ -515,6 +385,7 @@ export function standaloneRoute(pascal, camel, kebab, isTs = false) {
   const routePath = kebab.endsWith('s') ? `/${kebab}` : `/${kebab}s`;
   if (isTs) {
     return `import { Router, Request, Response } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
 const router = Router();
 
@@ -522,7 +393,7 @@ const router = Router();
  * GET /api/v1${routePath}
  */
 router.get('/', (req: Request, res: Response) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'GET ${routePath} response',
     data: [],
@@ -533,7 +404,7 @@ router.get('/', (req: Request, res: Response) => {
  * GET /api/v1${routePath}/:id
  */
 router.get('/:id', (req: Request, res: Response) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: \`GET ${routePath}/\${req.params.id} response\`,
     data: { id: req.params.id },
@@ -544,7 +415,7 @@ router.get('/:id', (req: Request, res: Response) => {
  * POST /api/v1${routePath}
  */
 router.post('/', (req: Request, res: Response) => {
-  res.status(201).json({
+  res.status(HTTP_STATUS.CREATED).json({
     success: true,
     message: '${pascal} created successfully',
     data: req.body,
@@ -555,7 +426,7 @@ router.post('/', (req: Request, res: Response) => {
  * PUT /api/v1${routePath}/:id
  */
 router.put('/:id', (req: Request, res: Response) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: \`${pascal} updated successfully\`,
     data: { id: req.params.id, ...req.body },
@@ -566,7 +437,7 @@ router.put('/:id', (req: Request, res: Response) => {
  * DELETE /api/v1${routePath}/:id
  */
 router.delete('/:id', (req: Request, res: Response) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: '${pascal} deleted successfully',
   });
@@ -577,6 +448,7 @@ export default router;
   }
 
   return `import { Router } from 'express';
+import { HTTP_STATUS } from '../constants/index.js';
 
 const router = Router();
 
@@ -584,7 +456,7 @@ const router = Router();
  * GET /api/v1${routePath}
  */
 router.get('/', (req, res) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'GET ${routePath} response',
     data: [],
@@ -595,7 +467,7 @@ router.get('/', (req, res) => {
  * GET /api/v1${routePath}/:id
  */
 router.get('/:id', (req, res) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: \`GET ${routePath}/\${req.params.id} response\`,
     data: { id: req.params.id },
@@ -606,7 +478,7 @@ router.get('/:id', (req, res) => {
  * POST /api/v1${routePath}
  */
 router.post('/', (req, res) => {
-  res.status(201).json({
+  res.status(HTTP_STATUS.CREATED).json({
     success: true,
     message: '${pascal} created successfully',
     data: req.body,
@@ -617,7 +489,7 @@ router.post('/', (req, res) => {
  * PUT /api/v1${routePath}/:id
  */
 router.put('/:id', (req, res) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: \`${pascal} updated successfully\`,
     data: { id: req.params.id, ...req.body },
@@ -628,13 +500,311 @@ router.put('/:id', (req, res) => {
  * DELETE /api/v1${routePath}/:id
  */
 router.delete('/:id', (req, res) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: '${pascal} deleted successfully',
   });
 });
 
 export default router;
+`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BaseModel template
+// ─────────────────────────────────────────────────────────────────────────────
+export function baseModel(isTs = false) {
+  if (isTs) {
+    return `import { db } from '../database/index.js';
+
+export class BaseModel {
+  static tableName: string = '';
+  static primaryKey: string = 'id';
+
+  /**
+   * Find a single record by primary key
+   */
+  static async find(id: string | number): Promise<any> {
+    if (typeof db?.query === 'function') {
+      const rows = await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${this.primaryKey} = ? LIMIT 1\`, [id]);
+      return rows[0] || null;
+    }
+    if (typeof db?.select === 'function') {
+      const rows = await db.select().from(this.getTableName()).where({ [this.primaryKey]: id }).limit(1);
+      return rows[0] || null;
+    }
+    return null;
+  }
+
+  /**
+   * Find all records matching optional conditions
+   */
+  static async findAll(where: Record<string, any> = {}): Promise<any[]> {
+    if (typeof db?.select === 'function') {
+      return await db.select().from(this.getTableName()).where(where);
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(where);
+      if (keys.length === 0) {
+        return await db.query(\`SELECT * FROM \${this.getTableName()}\`);
+      }
+      const clauses = keys.map(k => \`\${k} = ?\`).join(' AND ');
+      const values = keys.map(k => where[k]);
+      return await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${clauses}\`, values);
+    }
+    return [];
+  }
+
+  /**
+   * Alias for findAll with criteria
+   */
+  static async where(conditions: Record<string, any>): Promise<any[]> {
+    return this.findAll(conditions);
+  }
+
+  /**
+   * Create a new record
+   */
+  static async create(data: Record<string, any>): Promise<any> {
+    if (typeof db?.insert === 'function') {
+      return await db.insert(data).into(this.getTableName());
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(data);
+      const cols = keys.join(', ');
+      const placeholders = keys.map(() => '?').join(', ');
+      const values = keys.map(k => data[k]);
+      return await db.query(\`INSERT INTO \${this.getTableName()} (\${cols}) VALUES (\${placeholders})\`, values);
+    }
+    return { [this.primaryKey]: Date.now(), ...data };
+  }
+
+  /**
+   * Update an existing record
+   */
+  static async update(id: string | number, data: Record<string, any>): Promise<any> {
+    if (typeof db?.where === 'function') {
+      return await db(this.getTableName()).where({ [this.primaryKey]: id }).update(data);
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(data);
+      const setClause = keys.map(k => \`\${k} = ?\`).join(', ');
+      const values = [...keys.map(k => data[k]), id];
+      return await db.query(\`UPDATE \${this.getTableName()} SET \${setClause} WHERE \${this.primaryKey} = ?\`, values);
+    }
+    return { [this.primaryKey]: id, ...data };
+  }
+
+  /**
+   * Delete a record by primary key
+   */
+  static async delete(id: string | number): Promise<boolean> {
+    if (typeof db?.where === 'function') {
+      await db(this.getTableName()).where({ [this.primaryKey]: id }).del();
+      return true;
+    }
+    if (typeof db?.query === 'function') {
+      await db.query(\`DELETE FROM \${this.getTableName()} WHERE \${this.primaryKey} = ?\`, [id]);
+      return true;
+    }
+    return true;
+  }
+
+  /**
+   * Execute raw SQL query
+   */
+  static async query(sql: string, params: any[] = []): Promise<any> {
+    if (typeof db?.query === 'function') {
+      return await db.query(sql, params);
+    }
+    if (typeof db?.raw === 'function') {
+      return await db.raw(sql, params);
+    }
+    return null;
+  }
+
+  protected static getTableName(): string {
+    if (this.tableName) return this.tableName;
+    return this.name.toLowerCase() + 's';
+  }
+}
+
+export default BaseModel;
+`;
+  }
+
+  return `import { db } from '../database/index.js';
+
+export class BaseModel {
+  static tableName = '';
+  static primaryKey = 'id';
+
+  /**
+   * Find a single record by primary key
+   */
+  static async find(id) {
+    if (typeof db?.query === 'function') {
+      const rows = await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${this.primaryKey} = ? LIMIT 1\`, [id]);
+      return rows[0] || null;
+    }
+    if (typeof db?.select === 'function') {
+      const rows = await db.select().from(this.getTableName()).where({ [this.primaryKey]: id }).limit(1);
+      return rows[0] || null;
+    }
+    return null;
+  }
+
+  /**
+   * Find all records matching optional conditions
+   */
+  static async findAll(where = {}) {
+    if (typeof db?.select === 'function') {
+      return await db.select().from(this.getTableName()).where(where);
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(where);
+      if (keys.length === 0) {
+        return await db.query(\`SELECT * FROM \${this.getTableName()}\`);
+      }
+      const clauses = keys.map(k => \`\${k} = ?\`).join(' AND ');
+      const values = keys.map(k => where[k]);
+      return await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${clauses}\`, values);
+    }
+    return [];
+  }
+
+  /**
+   * Alias for findAll with criteria
+   */
+  static async where(conditions) {
+    return this.findAll(conditions);
+  }
+
+  /**
+   * Create a new record
+   */
+  static async create(data) {
+    if (typeof db?.insert === 'function') {
+      return await db.insert(data).into(this.getTableName());
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(data);
+      const cols = keys.join(', ');
+      const placeholders = keys.map(() => '?').join(', ');
+      const values = keys.map(k => data[k]);
+      return await db.query(\`INSERT INTO \${this.getTableName()} (\${cols}) VALUES (\${placeholders})\`, values);
+    }
+    return { [this.primaryKey]: Date.now(), ...data };
+  }
+
+  /**
+   * Update an existing record
+   */
+  static async update(id, data) {
+    if (typeof db?.where === 'function') {
+      return await db(this.getTableName()).where({ [this.primaryKey]: id }).update(data);
+    }
+    if (typeof db?.query === 'function') {
+      const keys = Object.keys(data);
+      const setClause = keys.map(k => \`\${k} = ?\`).join(', ');
+      const values = [...keys.map(k => data[k]), id];
+      return await db.query(\`UPDATE \${this.getTableName()} SET \${setClause} WHERE \${this.primaryKey} = ?\`, values);
+    }
+    return { [this.primaryKey]: id, ...data };
+  }
+
+  /**
+   * Delete a record by primary key
+   */
+  static async delete(id) {
+    if (typeof db?.where === 'function') {
+      await db(this.getTableName()).where({ [this.primaryKey]: id }).del();
+      return true;
+    }
+    if (typeof db?.query === 'function') {
+      await db.query(\`DELETE FROM \${this.getTableName()} WHERE \${this.primaryKey} = ?\`, [id]);
+      return true;
+    }
+    return true;
+  }
+
+  /**
+   * Execute raw SQL query
+   */
+  static async query(sql, params = []) {
+    if (typeof db?.query === 'function') {
+      return await db.query(sql, params);
+    }
+    if (typeof db?.raw === 'function') {
+      return await db.raw(sql, params);
+    }
+    return null;
+  }
+
+  static getTableName() {
+    if (this.tableName) return this.tableName;
+    return this.name.toLowerCase() + 's';
+  }
+}
+
+export default BaseModel;
+`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Model template
+// ─────────────────────────────────────────────────────────────────────────────
+export function model(pascal, camel, kebab, isTs = false) {
+  const tableName = kebab.endsWith('s') ? kebab : `${kebab}s`;
+  if (isTs) {
+    return `import { BaseModel } from './BaseModel.js';
+
+export class ${pascal}Model extends BaseModel {
+  static override tableName = '${tableName}';
+}
+
+export default ${pascal}Model;
+`;
+  }
+
+  return `import { BaseModel } from './BaseModel.js';
+
+export class ${pascal}Model extends BaseModel {
+  static tableName = '${tableName}';
+}
+
+export default ${pascal}Model;
+`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migration template
+// ─────────────────────────────────────────────────────────────────────────────
+export function migration(name, isTs = false) {
+  if (isTs) {
+    return `/**
+ * Migration: ${name}
+ */
+export async function up(db: any): Promise<void> {
+  // TODO: implement migration UP logic
+}
+
+export async function down(db: any): Promise<void> {
+  // TODO: implement migration DOWN logic
+}
+`;
+  }
+
+  return `/**
+ * Migration: ${name}
+ */
+export async function up(db) {
+  // TODO: implement migration UP logic
+}
+
+export async function down(db) {
+  // TODO: implement migration DOWN logic
+}
 `;
 }
 

@@ -12,7 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Sample Route**: Scaffolded projects now include a sample route (`GET /` and `GET /sample`) returning HTTP status `200` with JSON message `{ "message": "connected to backend successfully" }`.
-- **`cex make route <name>`**: Added new CLI command to generate a standalone route file (`src/routes/<name>.routes.js` or `.ts`) with RESTful endpoint handlers and automatic route registration in `src/routes/index.js` (or `index.ts`).
+- **`cex make route <name>`**: Added CLI command to generate a standalone route file (`src/routes/<name>.routes.js` or `.ts`) with RESTful endpoint handlers and automatic route registration in `src/routes/index.js` (or `index.ts`).
+- **`BaseModel` Class & `cex make model <name>`**: Added a lightweight base model (`src/models/BaseModel.js` / `.ts`) providing Eloquent-like static query methods (`find`, `findAll`, `where`, `create`, `update`, `delete`, `query`), and added `cex make model <name>` to generate models extending `BaseModel`.
+- **Database Migrations (`cex make migration` & `cex migrate`)**: Added `cex make migration <name>` to generate timestamped migration files in `src/database/migrations/`, and added `cex migrate` command to execute pending database migrations.
+- **`--pattern` Scaffolding Option**: Added `--pattern` flag (`service-model` [default] | `repository`) to `cex new` so projects default to a simplified Service-Model architecture without forcing repositories.
+
+### Changed
+
+- **Removed Repositories by Default**: Repositories are no longer scaffolded by default to reduce complexity, unless `--pattern=repository` is explicitly provided.
+- **Simplified Controller & Service Boilerplates**: Simplified `cex make controller` to generate clean `try { } catch (err) { next(err); }` methods, and simplified `cex make service` to generate a decoupled business logic class.
+- **Centralized `HTTP_STATUS` Constants**: Centralized all HTTP response status codes across all templates, controllers, routes, error handlers, and response utilities using `HTTP_STATUS` constants from `src/constants/index.js`.
 
 ---
 
