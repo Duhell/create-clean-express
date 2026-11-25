@@ -76,7 +76,7 @@ export async function makeCommand(type, name) {
       break;
 
     case 'auth':
-      generateAuth(srcDir, isTs, ext);
+      generateAuth(srcDir, isTs, ext, config);
       break;
 
     case 'test':
@@ -140,10 +140,10 @@ function generateResource(srcDir, pascal, camel, kebab, isTs, ext, config = {}) 
   updateRoutesIndex(srcDir, pascal, kebab, ext);
 }
 
-function generateAuth(srcDir, isTs, ext) {
+function generateAuth(srcDir, isTs, ext, config = {}) {
   generate(srcDir, 'controllers', `AuthController.${ext}`, templates.authController(isTs));
   generate(srcDir, 'services', `AuthService.${ext}`, templates.authService(isTs));
-  generate(srcDir, 'repositories', `AuthRepository.${ext}`, templates.authRepository(isTs));
+  generate(srcDir, 'repositories', `AuthRepository.${ext}`, templates.authRepository(isTs, config.database));
   generate(srcDir, 'middleware', `AuthMiddleware.${ext}`, templates.authMiddleware(isTs));
   generate(srcDir, 'routes', `auth.routes.${ext}`, templates.authRoute(isTs));
   updateRoutesIndexExact(srcDir, 'auth', ext);

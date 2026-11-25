@@ -56,6 +56,12 @@ jobs:
           test -f smoke-test/src/utils/logger.js
           echo "All expected JS files exist ✔"
 
+      - name: End-to-end test — install & run jest in scaffolded JS project
+        working-directory: smoke-test
+        run: |
+          npm install
+          npm test
+
       - name: Smoke test — scaffold TS project
         run: node bin/cex.js new smoke-test-ts --database sqlite --typescript --no-install --no-git
 

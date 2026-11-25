@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-11-25
+
+### Added
+
+- **Database-Wired `AuthRepository`**: `cex make auth` now generates real adapter-specific queries for `sqlite` (`better-sqlite3`), `mysql` (`mysql2/promise`), `prisma`, and an in-memory `Map` store when `database` is `none`.
+- **Linting, Formatting & TS Jest Config**: Scaffolded projects now include `.prettierrc`, `eslint.config.js`, `lint`/`format` scripts, `ts-jest` + `jest.config.js` for TypeScript projects, and a passing `tests/health.test.js|ts` starter test.
+- **End-to-End CI Verification**: CI now installs dependencies and runs `npm test` inside a freshly scaffolded project.
+
+---
+
 ## [0.4.0] - 2026-11-25
 
 ### Added

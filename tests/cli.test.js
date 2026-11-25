@@ -138,3 +138,47 @@ test('cex add docker generates TypeScript build step for TS projects', () => {
     fs.removeSync(tmpDir);
   }
 });
+
+test('cex new scaffolds prettier, eslint, starter health test, and ts-jest for TS', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'std-ts', '--database', 'none', '--typescript', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'std-ts');
+
+    assert.ok(fs.existsSync(path.join(projectDir, '.prettierrc')));
+    assert.ok(fs.existsSync(path.join(projectDir, 'eslint.config.js')));
+    assert.ok(fs.existsSync(path.join(projectDir, 'jest.config.js')));
+    assert.ok(fs.existsSync(path.join(projectDir, 'tests/health.test.ts')));
+
+    const pkg = fs.readJsonSync(path.join(projectDir, 'package.json'));
+    assert.ok(pkg.scripts.lint);
+    assert.ok(pkg.scripts.format);
+    assert.ok(pkg.devDependencies.eslint);
+    assert.ok(pkg.devDependencies.prettier);
+    assert.ok(pkg.devDependencies['ts-jest']);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('cex make auth generates database-wired AuthRepository for sqlite, mysql, and in-memory', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'sqlite-api', '--database', 'sqlite', '--no-install', '--no-git'], tmpDir);
+    runCli(['make', 'auth'], path.join(tmpDir, 'sqlite-api'));
+    const sqliteRepo = fs.readFileSync(path.join(tmpDir, 'sqlite-api/src/repositories/AuthRepository.js'), 'utf8');
+    assert.match(sqliteRepo, /db\.prepare\(/);
+
+    runCli(['new', 'mysql-api', '--database', 'mysql', '--no-install', '--no-git'], tmpDir);
+    runCli(['make', 'auth'], path.join(tmpDir, 'mysql-api'));
+    const mysqlRepo = fs.readFileSync(path.join(tmpDir, 'mysql-api/src/repositories/AuthRepository.js'), 'utf8');
+    assert.match(mysqlRepo, /pool\.execute\(/);
+
+    runCli(['new', 'mem-api', '--database', 'none', '--no-install', '--no-git'], tmpDir);
+    runCli(['make', 'auth'], path.join(tmpDir, 'mem-api'));
+    const memRepo = fs.readFileSync(path.join(tmpDir, 'mem-api/src/repositories/AuthRepository.js'), 'utf8');
+    assert.match(memRepo, /new Map\(\)/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});

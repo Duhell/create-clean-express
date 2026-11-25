@@ -1141,19 +1141,27 @@ export default new AuthService();
 `;
 }
 
-export function authRepository(isTs = false) {
-  if (isTs) {
-    return `export class AuthRepository {
-  async findByEmail(email: string): Promise<any> {
-    return null;
+export function authRepository(isTs = false, database = 'none') {
+  if (database === 'sqlite') {
+    const typeEmail = isTs ? ': string' : '';
+    const typeId = isTs ? ': string | number' : '';
+    const typeData = isTs ? ': Record<string, any>' : '';
+    const retAny = isTs ? ': Promise<any>' : '';
+    return `import db from '../database/index.js';
+
+export class AuthRepository {
+  async findByEmail(email${typeEmail})${retAny} {
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email) || null;
   }
 
-  async findById(id: string | number): Promise<any> {
-    return null;
+  async findById(id${typeId})${retAny} {
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
   }
 
-  async create(data: Record<string, any>): Promise<any> {
-    return { id: Date.now(), ...data };
+  async create(data${typeData})${retAny} {
+    const stmt = db.prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
+    const info = stmt.run(data.name, data.email, data.password);
+    return this.findById(info.lastInsertRowid);
   }
 }
 
@@ -1161,17 +1169,110 @@ export default new AuthRepository();
 `;
   }
 
-  return `class AuthRepository {
+  if (database === 'mysql') {
+    const typeEmail = isTs ? ': string' : '';
+    const typeId = isTs ? ': string | number' : '';
+    const typeData = isTs ? ': Record<string, any>' : '';
+    const retAny = isTs ? ': Promise<any>' : '';
+    return `import pool from '../database/index.js';
+
+export class AuthRepository {
+  async findByEmail(email${typeEmail})${retAny} {
+    const [rows]${isTs ? ': any' : ''} = await pool.execute('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    return rows[0] || null;
+  }
+
+  async findById(id${typeId})${retAny} {
+    const [rows]${isTs ? ': any' : ''} = await pool.execute('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
+    return rows[0] || null;
+  }
+
+  async create(data${typeData})${retAny} {
+    const [result]${isTs ? ': any' : ''} = await pool.execute(
+      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+      [data.name, data.email, data.password]
+    );
+    return this.findById(result.insertId);
+  }
+}
+
+export default new AuthRepository();
+`;
+  }
+
+  if (database === 'prisma') {
+    const typeEmail = isTs ? ': string' : '';
+    const typeId = isTs ? ': string | number' : '';
+    const typeData = isTs ? ': Record<string, any>' : '';
+    const retAny = isTs ? ': Promise<any>' : '';
+    return `import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export class AuthRepository {
+  async findByEmail(email${typeEmail})${retAny} {
+    return prisma.user.findUnique({ where: { email } });
+  }
+
+  async findById(id${typeId})${retAny} {
+    return prisma.user.findUnique({ where: { id: Number(id) } });
+  }
+
+  async create(data${typeData})${retAny} {
+    return prisma.user.create({ data: { name: data.name, email: data.email, password: data.password } });
+  }
+}
+
+export default new AuthRepository();
+`;
+  }
+
+  if (isTs) {
+    return `const users = new Map<string, Record<string, any>>();
+
+export class AuthRepository {
+  async findByEmail(email: string): Promise<any> {
+    for (const user of users.values()) {
+      if (user.email === email) return user;
+    }
+    return null;
+  }
+
+  async findById(id: string | number): Promise<any> {
+    return users.get(String(id)) || null;
+  }
+
+  async create(data: Record<string, any>): Promise<any> {
+    const id = String(Date.now());
+    const user = { id, ...data };
+    users.set(id, user);
+    return user;
+  }
+}
+
+export default new AuthRepository();
+`;
+  }
+
+  return `const users = new Map();
+
+class AuthRepository {
   async findByEmail(email) {
+    for (const user of users.values()) {
+      if (user.email === email) return user;
+    }
     return null;
   }
 
   async findById(id) {
-    return null;
+    return users.get(String(id)) || null;
   }
 
   async create(data) {
-    return { id: Date.now(), ...data };
+    const id = String(Date.now());
+    const user = { id, ...data };
+    users.set(id, user);
+    return user;
   }
 }
 

@@ -151,11 +151,15 @@ function writeProjectFiles(targetDir, projectName, database, validation, isTs, e
           build: 'tsc',
           start: 'cross-env NODE_ENV=production node dist/server.js',
           test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js',
+          lint: 'eslint src',
+          format: 'prettier --write "src/**/*.ts"',
         }
       : {
           dev: 'node src/server.js',
           start: 'cross-env NODE_ENV=production node src/server.js',
           test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js',
+          lint: 'eslint src',
+          format: 'prettier --write "src/**/*.js"',
         },
     engines: {
       node: '>=22.0.0',
@@ -903,6 +907,77 @@ export const HTTP_STATUS = {
   // src/database/index.js or ts
   write(`src/database/index.${ext}`, templates.dbTemplate(database, isTs));
 
+  // .prettierrc
+  write('.prettierrc', JSON.stringify({
+    semi: true,
+    singleQuote: true,
+    tabWidth: 2,
+    trailingComma: 'es5',
+  }, null, 2));
+
+  // eslint.config.js
+  if (isTs) {
+    write('eslint.config.js', `
+import tseslint from 'typescript-eslint';
+
+export default [
+  ...tseslint.configs.recommended,
+  {
+    ignores: ['dist/**', 'node_modules/**', 'logs/**'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+];
+`);
+  } else {
+    write('eslint.config.js', `
+export default [
+  {
+    ignores: ['node_modules/**', 'logs/**'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+];
+`);
+  }
+
+  // jest.config.js for TypeScript ESM
+  if (isTs) {
+    write('jest.config.js', `
+export default {
+  preset: 'ts-jest/presets/default-esm',
+  testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\\\.{1,2}/.*)\\\\.js$': '$1',
+  },
+  transform: {
+    '^.+\\\\.tsx?$': ['ts-jest', { useESM: true }],
+  },
+};
+`);
+  }
+
+  // tests/health.test.js or ts
+  write(`tests/health.test.${ext}`, `
+import request from 'supertest';
+import app from '../src/app.js';
+
+describe('GET /health', () => {
+  it('should return 200 ok', async () => {
+    const res = await request(app).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+});
+`);
+
   // README.md
   write('README.md', buildReadme(projectName, database, validation, isTs));
 }
@@ -944,11 +1019,15 @@ function buildDependencies(database, validation, isTs) {
     nodemon: '^3.1.4',
     jest: '^29.7.0',
     supertest: '^7.0.0',
+    eslint: '^9.15.0',
+    prettier: '^3.3.3',
   };
 
   if (isTs) {
     dev['typescript'] = '^5.4.5';
     dev['ts-node-dev'] = '^2.0.0';
+    dev['ts-jest'] = '^29.2.5';
+    dev['typescript-eslint'] = '^8.15.0';
     dev['@types/node'] = '^20.12.12';
     dev['@types/express'] = '^4.17.21';
     dev['@types/cors'] = '^2.8.17';
