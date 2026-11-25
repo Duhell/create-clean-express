@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] - 2026-11-25
+
+### Fixed
+
+- **TypeScript Compilation Fixes**: Resolved `tsc` errors on optional Swagger dynamic imports in `src/app.ts`, `errors: any = null` in `AppError.ts`, and `bigint` ID support in `BaseModel.ts`.
+- **JavaScript `BadRequestError` Fix**: Removed accidental TypeScript annotation from the JavaScript `BadRequestError` template.
+
+---
+
 ## [0.7.0] - 2026-11-25
 
 ### Added
