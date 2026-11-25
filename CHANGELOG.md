@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-11-25
+
+### Security & Reliability
+
+- **Project Name Validation**: `cex new` now validates `projectName` to prevent path traversal (`..`, `/`, `\`) and invalid package names.
+- **Cross-Platform Migrations**: `cex migrate` now uses `pathToFileURL()` so dynamic migration imports work on Windows as well as Unix.
+- **Separate Access & Refresh JWT Secrets**: `cex make auth` and scaffolded configs now use separate `JWT_SECRET` and `JWT_REFRESH_SECRET` secrets, enforce `type: 'access'` / `type: 'refresh'` token claims, and fail fast in production if secrets are missing or left as defaults.
+- **Rate Limiting & Body Size Limits**: Scaffolded apps now include `express-rate-limit` on `/api/` routes (plus stricter limits on auth endpoints) and `100kb` body size limits on `express.json` / `express.urlencoded`.
+- **CORS & Docker Hardening**: Restricted default CORS configuration via `CORS_ORIGIN`, updated `Dockerfile` to run as non-root `USER node`, and removed hardcoded Postgres credentials from `docker-compose.yml`.
+- **Cross-Platform Start Script**: Added `cross-env` for `npm start` in scaffolded projects.
+- **Documentation & Tests**: Cleaned up `README.md` and `package.json` descriptions (removed emojis and aligned with implemented features), and added `node:test` suite.
+
+---
+
 ## [0.2.2] - 2026-08-02
 
 ### Added

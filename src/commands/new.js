@@ -16,6 +16,14 @@ export async function newCommand(projectName, options = {}) {
     git = true,
   } = options;
 
+  const SAFE_PROJECT_NAME = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+  if (!projectName || projectName.includes('..') || !SAFE_PROJECT_NAME.test(projectName)) {
+    logger.error(
+      `Invalid project name "${projectName}". Use only letters, numbers, hyphens, underscores, or dots (cannot start with a dot or contain path separators).`
+    );
+    process.exit(1);
+  }
+
   const targetDir = path.resolve(process.cwd(), projectName);
   const isTs = Boolean(typescript);
   const ext = isTs ? 'ts' : 'js';
@@ -107,7 +115,7 @@ export async function newCommand(projectName, options = {}) {
 
     // ── Done ───────────────────────────────────────────────────────────────
     logger.newline();
-    console.log(chalk.green.bold('  🎉 Project ready!'));
+    console.log(chalk.green.bold('  Project ready!'));
     logger.newline();
     console.log(chalk.dim('  Next steps:'));
     console.log(chalk.cyan(`    cd ${projectName}`));
@@ -141,12 +149,12 @@ function writeProjectFiles(targetDir, projectName, database, validation, isTs, e
       ? {
           dev: 'ts-node-dev --respawn --transpile-only src/server.ts',
           build: 'tsc',
-          start: 'NODE_ENV=production node dist/server.js',
+          start: 'cross-env NODE_ENV=production node dist/server.js',
           test: 'echo "No tests yet"',
         }
       : {
           dev: 'node src/server.js',
-          start: 'NODE_ENV=production node src/server.js',
+          start: 'cross-env NODE_ENV=production node src/server.js',
           test: 'echo "No tests yet"',
         },
     engines: {
@@ -193,9 +201,14 @@ APP_NAME=${projectName}
 # Database Configuration
 ${envDbPart}
 
+# CORS Configuration (comma-separated origins, e.g. http://localhost:3000,https://app.example.com)
+CORS_ORIGIN=http://localhost:3000
+
 # JWT Configuration
 JWT_SECRET=change_me_in_production
-JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=change_me_refresh_in_production
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
 `);
 
   // .env.example
@@ -206,8 +219,12 @@ APP_NAME=${projectName}
 
 ${envDbPart}
 
+CORS_ORIGIN=http://localhost:3000
+
 JWT_SECRET=
-JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
 `);
 
   // .gitignore
@@ -230,7 +247,9 @@ Thumbs.db
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import config from './config/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import routes from './routes/index.js';
@@ -239,9 +258,17 @@ const app: Application = express();
 
 // ── Security & Parsing ─────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: config.cors.origin, credentials: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', apiLimiter);
 
 // ── Logging ────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
@@ -267,7 +294,9 @@ export default app;
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import config from './config/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import routes from './routes/index.js';
@@ -276,9 +305,17 @@ const app = express();
 
 // ── Security & Parsing ─────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: config.cors.origin, credentials: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', apiLimiter);
 
 // ── Logging ────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
@@ -421,15 +458,32 @@ export default router;
   // src/config/index.js or ts
   if (isTs) {
     write(`src/config/index.${ext}`, `
+const env = process.env.NODE_ENV || 'development';
+const jwtSecret = process.env.JWT_SECRET || (env === 'production' ? '' : 'change_me_in_production');
+const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || (env === 'production' ? '' : 'change_me_refresh_in_production');
+
+if (env === 'production' && (!jwtSecret || !jwtRefreshSecret)) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be set in production');
+}
+
 export const config = {
   app: {
     name: process.env.APP_NAME || '${projectName}',
-    env: process.env.NODE_ENV || 'development',
+    env,
     port: parseInt(process.env.PORT || '3000', 10),
   },
+  cors: {
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+      : env === 'production'
+        ? false
+        : true,
+  },
   jwt: {
-    secret: process.env.JWT_SECRET || 'change_me',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    secret: jwtSecret,
+    refreshSecret: jwtRefreshSecret,
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
   database: {
     url: process.env.DATABASE_URL || '',
@@ -440,15 +494,32 @@ export default config;
 `);
   } else {
     write(`src/config/index.${ext}`, `
+const env = process.env.NODE_ENV || 'development';
+const jwtSecret = process.env.JWT_SECRET || (env === 'production' ? '' : 'change_me_in_production');
+const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || (env === 'production' ? '' : 'change_me_refresh_in_production');
+
+if (env === 'production' && (!jwtSecret || !jwtRefreshSecret)) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be set in production');
+}
+
 export const config = {
   app: {
     name: process.env.APP_NAME || '${projectName}',
-    env: process.env.NODE_ENV || 'development',
+    env,
     port: parseInt(process.env.PORT, 10) || 3000,
   },
+  cors: {
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+      : env === 'production'
+        ? false
+        : true,
+  },
   jwt: {
-    secret: process.env.JWT_SECRET || 'change_me',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    secret: jwtSecret,
+    refreshSecret: jwtRefreshSecret,
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
   database: {
     url: process.env.DATABASE_URL || '',
@@ -734,6 +805,8 @@ function buildDependencies(database, validation, isTs) {
     dotenv: '^16.4.5',
     helmet: '^7.1.0',
     cors: '^2.8.5',
+    'express-rate-limit': '^7.4.0',
+    'cross-env': '^7.0.3',
     morgan: '^1.10.0',
   };
 

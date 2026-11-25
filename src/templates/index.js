@@ -1022,7 +1022,10 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     try {
-      const payload: any = jwt.verify(refreshToken, config.jwt.secret);
+      const payload: any = jwt.verify(refreshToken, config.jwt.refreshSecret);
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedError('Invalid refresh token');
+      }
       const token = this._generateToken(payload.sub);
       return { token };
     } catch {
@@ -1041,14 +1044,14 @@ export class AuthService {
   }
 
   private _generateToken(userId: string | number) {
-    return jwt.sign({ sub: userId }, config.jwt.secret, {
+    return jwt.sign({ sub: userId, type: 'access' }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
   }
 
   private _generateRefreshToken(userId: string | number) {
-    return jwt.sign({ sub: userId, type: 'refresh' }, config.jwt.secret, {
-      expiresIn: '30d',
+    return jwt.sign({ sub: userId, type: 'refresh' }, config.jwt.refreshSecret, {
+      expiresIn: config.jwt.refreshExpiresIn,
     });
   }
 
@@ -1095,7 +1098,10 @@ class AuthService {
 
   async refresh(refreshToken) {
     try {
-      const payload = jwt.verify(refreshToken, config.jwt.secret);
+      const payload = jwt.verify(refreshToken, config.jwt.refreshSecret);
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedError('Invalid refresh token');
+      }
       const token = this._generateToken(payload.sub);
       return { token };
     } catch {
@@ -1114,14 +1120,14 @@ class AuthService {
   }
 
   _generateToken(userId) {
-    return jwt.sign({ sub: userId }, config.jwt.secret, {
+    return jwt.sign({ sub: userId, type: 'access' }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
   }
 
   _generateRefreshToken(userId) {
-    return jwt.sign({ sub: userId, type: 'refresh' }, config.jwt.secret, {
-      expiresIn: '30d',
+    return jwt.sign({ sub: userId, type: 'refresh' }, config.jwt.refreshSecret, {
+      expiresIn: config.jwt.refreshExpiresIn,
     });
   }
 
@@ -1189,6 +1195,9 @@ export function authMiddleware(req: Request & { user?: any }, res: Response, nex
 
     const token = authHeader.split(' ')[1];
     const payload: any = jwt.verify(token, config.jwt.secret);
+    if (payload.type && payload.type !== 'access') {
+      throw new UnauthorizedError('Invalid token type');
+    }
     req.user = { id: payload.sub };
     next();
   } catch (err: any) {
@@ -1205,7 +1214,9 @@ export function optionalAuthMiddleware(req: Request & { user?: any }, res: Respo
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const payload: any = jwt.verify(token, config.jwt.secret);
-      req.user = { id: payload.sub };
+      if (!payload.type || payload.type === 'access') {
+        req.user = { id: payload.sub };
+      }
     }
     next();
   } catch {
@@ -1228,6 +1239,9 @@ export function authMiddleware(req, res, next) {
 
     const token = authHeader.split(' ')[1];
     const payload = jwt.verify(token, config.jwt.secret);
+    if (payload.type && payload.type !== 'access') {
+      throw new UnauthorizedError('Invalid token type');
+    }
     req.user = { id: payload.sub };
     next();
   } catch (err) {
@@ -1244,7 +1258,9 @@ export function optionalAuthMiddleware(req, res, next) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const payload = jwt.verify(token, config.jwt.secret);
-      req.user = { id: payload.sub };
+      if (!payload.type || payload.type === 'access') {
+        req.user = { id: payload.sub };
+      }
     }
     next();
   } catch {
@@ -1256,14 +1272,22 @@ export function optionalAuthMiddleware(req, res, next) {
 
 export function authRoute(isTs = false) {
   return `import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import AuthController from '../controllers/AuthController.js';
 import { authMiddleware } from '../middleware/AuthMiddleware.js';
 
 const router = Router();
 
-router.post('/register', AuthController.register.bind(AuthController));
-router.post('/login', AuthController.login.bind(AuthController));
-router.post('/refresh', AuthController.refresh.bind(AuthController));
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/register', authLimiter, AuthController.register.bind(AuthController));
+router.post('/login', authLimiter, AuthController.login.bind(AuthController));
+router.post('/refresh', authLimiter, AuthController.refresh.bind(AuthController));
 router.post('/logout', authMiddleware, AuthController.logout.bind(AuthController));
 router.get('/me', authMiddleware, AuthController.me.bind(AuthController));
 

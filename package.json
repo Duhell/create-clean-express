@@ -1,7 +1,7 @@
 {
   "name": "create-clean-express",
-  "version": "0.2.2",
-  "description": "An opinionated CLI for Express.js that helps developers create clean, scalable backend APIs using a layered architecture.",
+  "version": "0.3.0",
+  "description": "An opinionated CLI for Express.js that scaffolds clean, scalable backend APIs with layered architecture, TypeScript/ESM support, database adapters, validation, JWT auth, and plugins.",
   "bin": {
     "cex": "./bin/cex.js",
     "create-clean-express": "./bin/create.js"
@@ -9,7 +9,7 @@
   "main": "./src/index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests yet\"",
+    "test": "node --test tests/*.test.js",
     "dev": "node bin/cex.js"
   },
   "dependencies": {

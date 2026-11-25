@@ -1,4 +1,5 @@
 import path from 'path';
+import { pathToFileURL } from 'url';
 import fs from 'fs-extra';
 import chalk from 'chalk';
 import * as logger from '../utils/logger.js';
@@ -88,7 +89,7 @@ export async function migrateCommand() {
     try {
       logger.info(`Migrating: ${file}`);
       const filePath = path.join(migrationsDir, file);
-      const mod = await import(`file://${filePath}`);
+      const mod = await import(pathToFileURL(filePath).href);
       if (typeof mod.up === 'function') {
         await mod.up();
       }

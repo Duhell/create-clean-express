@@ -69,8 +69,10 @@ function addDocker(root) {
 FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 COPY . .
+RUN chown -R node:node /app
+USER node
 EXPOSE 3000
 CMD ["node", "src/server.js"]
 `.trimStart());
@@ -90,11 +92,11 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mydb
+      POSTGRES_USER: \${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: \${POSTGRES_DB:-mydb}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -170,7 +172,10 @@ import { Server } from 'socket.io';
 
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: '*' },
+    cors: {
+      origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()) : false,
+      credentials: true,
+    },
   });
 
   io.on('connection', (socket) => {

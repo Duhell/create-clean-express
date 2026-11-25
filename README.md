@@ -1,26 +1,26 @@
-# 🚀 create-clean-express
+# create-clean-express
 
-> An opinionated CLI for building **clean, scalable Express.js APIs** with a layered architecture — like Laravel Artisan, but for Express.
+> An opinionated CLI for Express.js that scaffolds clean, scalable backend APIs with a layered architecture, TypeScript/ESM support, database adapters, validation, JWT auth, and plugins.
 
 [![npm version](https://img.shields.io/npm/v/create-clean-express.svg)](https://www.npmjs.com/package/create-clean-express)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org)
 
 ---
 
-## ✨ Features
+## Features
 
-- ⚡ **One command** to scaffold a production-ready Express project
-- 🏛️ **Layered architecture** — controllers, services, repositories, validators
-- 🔧 **Code generators** — generate any layer individually or as a full resource
-- 🔐 **Auth generator** — complete JWT authentication module out of the box
-- 🧩 **Plugin system** — add Swagger, Docker, Redis, BullMQ, Socket.IO in one command
-- 📄 **Swagger-ready routes** — all generated routes include JSDoc annotations
-- 🌱 **Beginner-friendly**, but powerful enough for experienced teams
+- **One-command scaffolding** — create a structured Express.js project with ESM or TypeScript
+- **Layered architecture** — supports `service-model` (default) and `repository` patterns
+- **Code generators** — generate controllers, services, models, migrations, routes, repositories, middleware, validators, utilities, errors, and tests
+- **JWT authentication module** — complete auth flow with separate access/refresh secrets, token type checks, and rate-limited auth routes
+- **Security defaults** — Helmet headers, origin-configurable CORS, `express-rate-limit`, `100kb` payload limits, and production secret validation
+- **Plugin system** — add Swagger, Docker, Redis, BullMQ, or Socket.IO in one command
+- **Database & validation support** — SQLite, MySQL, Prisma, Sequelize, Mongoose, Drizzle, plus Zod, Joi, or express-validator
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Option 1 — Use directly with npx (no install needed)
 
@@ -37,7 +37,7 @@ cex new my-api
 
 ---
 
-## 🛠️ Commands
+## Commands
 
 ### `cex new <project-name>`
 
@@ -45,6 +45,7 @@ Scaffold a new Express project with clean architecture.
 
 ```bash
 cex new my-api
+cex new my-api --typescript
 cex new my-api --pattern service-model
 cex new my-api --pattern repository
 cex new my-api --database prisma
@@ -58,6 +59,7 @@ cex new my-api --no-install --no-git
 |---|---|---|
 | `--pattern <type>` | `service-model` (default clean pattern) \| `repository` | `service-model` |
 | `--database <type>` | `sqlite` \| `mysql` \| `prisma` \| `sequelize` \| `mongoose` \| `drizzle` \| `none` | `none` |
+| `--typescript` | Scaffold a TypeScript project with `tsconfig.json` and types | `false` |
 | `--validation <lib>` | `zod` \| `joi` \| `express-validator` \| `none` | `none` |
 | `--no-install` | Skip `npm install` | — |
 | `--no-git` | Skip `git init` | — |
@@ -109,7 +111,7 @@ Add optional integrations to an existing project.
 
 ```bash
 cex add swagger    # OpenAPI docs via swagger-ui-express
-cex add docker     # Dockerfile + docker-compose.yml
+cex add docker     # Dockerfile + docker-compose.yml + .dockerignore
 cex add redis      # ioredis client config
 cex add bullmq     # BullMQ queue + worker setup
 cex add socketio   # Socket.IO server config
@@ -117,26 +119,27 @@ cex add socketio   # Socket.IO server config
 
 ---
 
-## 📁 Generated Project Structure
+## Generated Project Structure
 
 ```
 my-api/
 ├── src/
-│   ├── config/           # App config (port, jwt, db)
+│   ├── config/           # App config (port, cors, jwt, db)
 │   ├── constants/        # HTTP status codes & app constants
 │   ├── controllers/      # Route handlers (thin layer)
-│   ├── middleware/        # Express middleware
-│   ├── repositories/     # Data access layer (DB queries)
+│   ├── middleware/       # Express middleware (errorHandler, notFound, auth)
+│   ├── models/           # BaseModel & data models / schemas
+│   ├── repositories/     # Data access layer (when --pattern repository)
 │   ├── routes/           # Express routers
 │   ├── services/         # Business logic layer
 │   ├── validators/       # Input validation
-│   ├── models/           # Data models / schemas
-│   ├── utils/            # Shared utilities
+│   ├── utils/            # Shared utilities & error file logger
 │   ├── errors/           # Custom error classes
-│   ├── database/         # DB connection setup
-│   ├── app.js            # Express app setup
+│   ├── database/         # DB connection setup & migrations
+│   ├── app.js            # Express app setup (helmet, cors, rate-limit)
 │   └── server.js         # Server entry point
 ├── tests/
+├── logs/                 # Error logs (gitignored)
 ├── .env
 ├── .env.example
 ├── .gitignore
@@ -147,29 +150,29 @@ my-api/
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The CLI enforces a **layered (n-tier) architecture**:
 
 ```
-Request → Router → Controller → Service → Repository → Database
-                                    ↓
-                               Validator
-                                    ↓
-                              Middleware
+Request -> Router -> Controller -> Service -> Model / Repository -> Database
+                                      |
+                                  Validator
+                                      |
+                                  Middleware
 ```
 
 | Layer | Responsibility |
 |---|---|
 | **Controller** | Handle HTTP request/response, delegate to service |
 | **Service** | Business logic, orchestration |
-| **Repository** | All database access — the only layer that touches the DB |
+| **Model / Repository** | Data access layer (`BaseModel` by default, or `Repository` with `--pattern repository`) |
 | **Validator** | Input validation before reaching the controller |
-| **Middleware** | Cross-cutting concerns (auth, rate-limit, logging) |
+| **Middleware** | Cross-cutting concerns (auth, rate-limit, error handling, logging) |
 
 ---
 
-## ⚡ Example Workflow
+## Example Workflow
 
 ```bash
 # 1. Create project
@@ -201,17 +204,17 @@ npm run dev
 
 ---
 
-## 🔒 Auth Module (`cex make auth`)
+## Auth Module (`cex make auth`)
 
 Generates a complete JWT authentication flow:
 
 | File | Purpose |
 |---|---|
 | `controllers/AuthController.js` | register, login, refresh, logout, me |
-| `services/AuthService.js` | bcrypt hashing, JWT signing |
+| `services/AuthService.js` | bcrypt hashing, separate access/refresh JWT signing & verification |
 | `repositories/AuthRepository.js` | DB queries for users |
-| `middleware/AuthMiddleware.js` | JWT verification middleware |
-| `routes/auth.routes.js` | Auth route definitions |
+| `middleware/AuthMiddleware.js` | JWT access-token verification middleware |
+| `routes/auth.routes.js` | Rate-limited auth route definitions |
 
 **Endpoints generated:**
 
@@ -225,14 +228,16 @@ GET    /api/v1/auth/me
 
 ---
 
-## 📄 cex.config.json
+## `cex.config.json`
 
 Generated at project root. Future generators read this automatically.
 
 ```json
 {
   "language": "javascript",
+  "module": "esm",
   "architecture": "layered",
+  "pattern": "service-model",
   "database": "prisma",
   "validation": "zod",
   "testing": "jest",
@@ -242,29 +247,29 @@ Generated at project root. Future generators read this automatically.
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 | Phase | Feature | Status |
 |---|---|---|
-| 1 | CLI Foundation | ✅ Done |
-| 2 | Project Scaffolding | ✅ Done |
-| 3 | Code Generators | ✅ Done |
-| 4 | Resource Generator | ✅ Done |
-| 5 | Sensible Templates | ✅ Done |
-| 6 | Database Selection | 🔜 Planned |
-| 7 | Validation Library Selection | 🔜 Planned |
-| 8 | Auth Generator | ✅ Done |
-| 9 | Config File | ✅ Done |
-| 10 | Testing Framework | 🔜 Planned |
-| 11 | Plugins | ✅ Done |
-| 12 | API Documentation | 🔜 Planned |
-| 13 | Deployment Templates | 🔜 Planned |
-| 14 | Interactive Prompts & DX | 🔜 Planned |
-| 15 | TypeScript Support | 🔜 Future |
+| 1 | CLI Foundation | Done |
+| 2 | Project Scaffolding | Done |
+| 3 | Code Generators | Done |
+| 4 | Resource Generator | Done |
+| 5 | Sensible Templates | Done |
+| 6 | Database Selection | Done |
+| 7 | Validation Library Selection | Done |
+| 8 | Auth Generator | Done |
+| 9 | Config File | Done |
+| 10 | Testing Framework | Planned |
+| 11 | Plugins | Done |
+| 12 | API Documentation | Done (Swagger plugin) |
+| 13 | Deployment Templates | Done (Docker plugin) |
+| 14 | Interactive Prompts & DX | Done |
+| 15 | TypeScript Support | Done |
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
@@ -276,6 +281,6 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 ---
 
-## 📄 License
+## License
 
 MIT © create-clean-express contributors
