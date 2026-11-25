@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as logger from '../utils/logger.js';
-import { findProjectRoot } from '../utils/project.js';
+import { findProjectRoot, loadConfig } from '../utils/project.js';
 
 const PLUGINS = {
   swagger: addSwagger,
@@ -16,6 +16,8 @@ const PLUGINS = {
 
 export async function addCommand(plugin) {
   const root = findProjectRoot();
+  const config = loadConfig(root);
+  const isTs = config.language === 'typescript';
 
   if (!PLUGINS[plugin]) {
     logger.error(`Unknown plugin: ${plugin}`);
@@ -24,7 +26,7 @@ export async function addCommand(plugin) {
   }
 
   logger.section(`Adding plugin: ${plugin}`);
-  await PLUGINS[plugin](root);
+  await PLUGINS[plugin](root, isTs);
   logger.newline();
   logger.success(chalk.bold(`Plugin ${plugin} added!`));
   logger.newline();
@@ -34,13 +36,18 @@ export async function addCommand(plugin) {
 // Plugin implementations
 // ─────────────────────────────────────────────────────────────────────────────
 
-function addSwagger(root) {
-  installPackages(root, ['swagger-ui-express', 'swagger-jsdoc']);
+function addSwagger(root, isTs = false) {
+  const ext = isTs ? 'ts' : 'js';
+  const pkgs = ['swagger-ui-express', 'swagger-jsdoc'];
+  if (isTs) {
+    pkgs.push('@types/swagger-ui-express', '@types/swagger-jsdoc');
+  }
+  installPackages(root, pkgs);
 
-  fs.outputFileSync(path.join(root, 'src/config/swagger.js'), `
+  fs.outputFileSync(path.join(root, `src/config/swagger.${ext}`), `
 import swaggerJsdoc from 'swagger-jsdoc';
 
-const options = {
+const options${isTs ? ': swaggerJsdoc.Options' : ''} = {
   definition: {
     openapi: '3.0.0',
     info: {
@@ -50,31 +57,31 @@ const options = {
     },
     servers: [{ url: '/api/v1' }],
   },
-  apis: ['./src/routes/*.js'],
+  apis: ['./src/routes/*.${ext}'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
 export default swaggerSpec;
 `.trimStart());
 
-  logger.success('Created src/config/swagger.js');
-  logger.info('Add to app.js:');
-  logger.info("  import swaggerUi from 'swagger-ui-express';");
-  logger.info("  import swaggerSpec from './config/swagger.js';");
-  logger.info("  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));");
+  logger.success(`Created src/config/swagger.${ext}`);
+  logger.info('Swagger UI is auto-mounted at /api-docs when src/config/swagger exists.');
 }
 
-function addDocker(root) {
+function addDocker(root, isTs = false) {
+  const buildStep = isTs ? 'RUN npm run build\n' : '';
+  const cmdTarget = isTs ? 'dist/server.js' : 'src/server.js';
+
   fs.outputFileSync(path.join(root, 'Dockerfile'), `
 FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY . .
-RUN chown -R node:node /app
+${buildStep}RUN chown -R node:node /app
 USER node
 EXPOSE 3000
-CMD ["node", "src/server.js"]
+CMD ["node", "${cmdTarget}"]
 `.trimStart());
 
   fs.outputFileSync(path.join(root, 'docker-compose.yml'), `
@@ -117,60 +124,63 @@ logs/
   logger.success('Created .dockerignore');
 }
 
-function addRedis(root) {
+function addRedis(root, isTs = false) {
+  const ext = isTs ? 'ts' : 'js';
   installPackages(root, ['ioredis']);
 
-  fs.outputFileSync(path.join(root, 'src/config/redis.js'), `
+  fs.outputFileSync(path.join(root, `src/config/redis.${ext}`), `
 import Redis from 'ioredis';
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
   password: process.env.REDIS_PASSWORD || undefined,
 });
 
 redis.on('connect', () => console.log('Redis connected'));
-redis.on('error', (err) => console.error('Redis error:', err));
+redis.on('error', (err${isTs ? ': Error' : ''}) => console.error('Redis error:', err));
 
 export default redis;
 `.trimStart());
 
-  logger.success('Created src/config/redis.js');
+  logger.success(`Created src/config/redis.${ext}`);
   logger.info('Add REDIS_HOST, REDIS_PORT, REDIS_PASSWORD to your .env');
 }
 
-function addBullMQ(root) {
+function addBullMQ(root, isTs = false) {
+  const ext = isTs ? 'ts' : 'js';
   installPackages(root, ['bullmq', 'ioredis']);
 
-  fs.outputFileSync(path.join(root, 'src/config/queue.js'), `
-import { Queue, Worker } from 'bullmq';
+  fs.outputFileSync(path.join(root, `src/config/queue.${ext}`), `
+import { Queue, Worker${isTs ? ', Processor' : ''} } from 'bullmq';
 import Redis from 'ioredis';
 
 const connection = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
   maxRetriesPerRequest: null,
 });
 
-export function createQueue(name) {
+export function createQueue(name${isTs ? ': string' : ''}) {
   return new Queue(name, { connection });
 }
 
-export function createWorker(name, processor) {
+export function createWorker(name${isTs ? ': string' : ''}, processor${isTs ? ': Processor' : ''}) {
   return new Worker(name, processor, { connection });
 }
 `.trimStart());
 
-  logger.success('Created src/config/queue.js');
+  logger.success(`Created src/config/queue.${ext}`);
 }
 
-function addSocketIO(root) {
+function addSocketIO(root, isTs = false) {
+  const ext = isTs ? 'ts' : 'js';
   installPackages(root, ['socket.io']);
 
-  fs.outputFileSync(path.join(root, 'src/config/socket.js'), `
-import { Server } from 'socket.io';
+  fs.outputFileSync(path.join(root, `src/config/socket.${ext}`), `
+import { Server } from 'socket.io';${isTs ? "\nimport type { Server as HttpServer } from 'http';" : ''}
 
-export function initSocket(httpServer) {
+export function initSocket(httpServer${isTs ? ': HttpServer' : ''}) {
   const io = new Server(httpServer, {
     cors: {
       origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()) : false,
@@ -190,9 +200,9 @@ export function initSocket(httpServer) {
 }
 `.trimStart());
 
-  logger.success('Created src/config/socket.js');
-  logger.info("In server.js: import { initSocket } from './config/socket.js';");
-  logger.info("Then: const io = initSocket(server);");
+  logger.success(`Created src/config/socket.${ext}`);
+  logger.info("In server: import { initSocket } from './config/socket.js';");
+  logger.info('Then: const io = initSocket(server);');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

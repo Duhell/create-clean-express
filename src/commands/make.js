@@ -180,6 +180,11 @@ function updateRoutesIndex(srcDir, pascal, kebab, ext) {
   }
 
   let content = fs.readFileSync(indexPath, 'utf8');
+  if (content.includes('readdirSync') && !content.includes('// ── Register your routes here')) {
+    logger.info(`Route auto-discovered by src/routes/index.${ext}`);
+    return;
+  }
+
   const routePath = kebab.endsWith('s') ? `/${kebab}` : `/${kebab}s`;
   const varName = toCamelCase(kebab) + 'Routes';
   const importLine = `import ${varName} from './${kebab}.routes.js';`;
@@ -215,6 +220,11 @@ function updateRoutesIndexExact(srcDir, kebab, ext) {
   }
 
   let content = fs.readFileSync(indexPath, 'utf8');
+  if (content.includes('readdirSync') && !content.includes('// ── Register your routes here')) {
+    logger.info(`Route auto-discovered by src/routes/index.${ext}`);
+    return;
+  }
+
   const routePath = `/${kebab}`;
   const varName = kebab.replace(/-/g, '') + 'Routes';
   const importLine = `import ${varName} from './${kebab}.routes.js';`;

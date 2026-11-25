@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-11-25
+
+### Added
+
+- **Route Auto-Discovery**: Newly scaffolded `src/routes/index.js|ts` automatically discovers and mounts `*.routes.js|ts` files in `src/routes/` (backward-compatible with older marker-based `routes/index` files).
+- **Auto-Mounted Swagger**: `src/app.js|ts` automatically mounts `/api-docs` when `src/config/swagger.js|ts` is added via `cex add swagger`.
+- **Developer Helpers**: Added `src/utils/asyncHandler.js|ts`, `src/utils/pagination.js|ts` (`getPagination`), and `src/middleware/validate.js|ts` (tailored for `zod`, `joi`, `express-validator`, or custom schemas).
+- **TypeScript-Aware Plugins**: `cex add` (`swagger`, `docker`, `redis`, `bullmq`, `socketio`) now reads `cex.config.json` and generates `.ts` files and TS Docker builds for TypeScript projects.
+- **Testing Framework Setup**: Scaffolded projects now include `jest` and `supertest` in `devDependencies` with an ESM-ready `npm test` script.
+
+---
+
 ## [0.3.0] - 2026-11-25
 
 ### Security & Reliability

@@ -90,3 +90,51 @@ test('cex add docker generates hardened Dockerfile and docker-compose.yml', () =
     fs.removeSync(tmpDir);
   }
 });
+
+test('cex new scaffolds route auto-discovery, helpers, validate middleware, and jest', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'dx-api', '--database', 'none', '--validation', 'zod', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'dx-api');
+
+    const pkg = fs.readJsonSync(path.join(projectDir, 'package.json'));
+    assert.ok(pkg.devDependencies.jest);
+    assert.ok(pkg.devDependencies.supertest);
+    assert.match(pkg.scripts.test, /jest/);
+
+    const routesIndex = fs.readFileSync(path.join(projectDir, 'src/routes/index.js'), 'utf8');
+    assert.match(routesIndex, /readdirSync/);
+    assert.match(routesIndex, /\.routes\.js/);
+
+    const appJs = fs.readFileSync(path.join(projectDir, 'src/app.js'), 'utf8');
+    assert.match(appJs, /\/api-docs/);
+
+    assert.ok(fs.existsSync(path.join(projectDir, 'src/utils/asyncHandler.js')));
+    assert.ok(fs.existsSync(path.join(projectDir, 'src/utils/pagination.js')));
+
+    const validateJs = fs.readFileSync(path.join(projectDir, 'src/middleware/validate.js'), 'utf8');
+    assert.match(validateJs, /safeParse/);
+
+    // Generating a route does not break auto-discovery routes/index.js
+    runCli(['make', 'route', 'Product'], projectDir);
+    const routesIndexAfter = fs.readFileSync(path.join(projectDir, 'src/routes/index.js'), 'utf8');
+    assert.equal(routesIndexAfter, routesIndex);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('cex add docker generates TypeScript build step for TS projects', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'ts-api', '--database', 'none', '--typescript', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'ts-api');
+    runCli(['add', 'docker'], projectDir);
+
+    const dockerfile = fs.readFileSync(path.join(projectDir, 'Dockerfile'), 'utf8');
+    assert.match(dockerfile, /RUN npm run build/);
+    assert.match(dockerfile, /dist\/server\.js/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});

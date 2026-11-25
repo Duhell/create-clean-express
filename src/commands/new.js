@@ -150,12 +150,12 @@ function writeProjectFiles(targetDir, projectName, database, validation, isTs, e
           dev: 'ts-node-dev --respawn --transpile-only src/server.ts',
           build: 'tsc',
           start: 'cross-env NODE_ENV=production node dist/server.js',
-          test: 'echo "No tests yet"',
+          test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js',
         }
       : {
           dev: 'node src/server.js',
           start: 'cross-env NODE_ENV=production node src/server.js',
-          test: 'echo "No tests yet"',
+          test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js',
         },
     engines: {
       node: '>=22.0.0',
@@ -244,6 +244,7 @@ Thumbs.db
   // src/app.js or ts
   if (isTs) {
     write(`src/app.${ext}`, `
+import fs from 'fs';
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -283,6 +284,15 @@ app.get('/health', (req: Request, res: Response) => {
 // ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1', routes);
 
+// ── Optional Swagger UI (auto-mounted when src/config/swagger exists) ──────
+if (fs.existsSync(new URL('./config/swagger.js', import.meta.url))) {
+  const [{ default: swaggerUi }, { default: swaggerSpec }] = await Promise.all([
+    import('swagger-ui-express'),
+    import('./config/swagger.js'),
+  ]);
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
 // ── Error handling ─────────────────────────────────────────────────────────
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
@@ -291,6 +301,7 @@ export default app;
 `);
   } else {
     write(`src/app.${ext}`, `
+import fs from 'fs';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -329,6 +340,15 @@ app.get('/health', (req, res) => {
 
 // ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1', routes);
+
+// ── Optional Swagger UI (auto-mounted when src/config/swagger exists) ──────
+if (fs.existsSync(new URL('./config/swagger.js', import.meta.url))) {
+  const [{ default: swaggerUi }, { default: swaggerSpec }] = await Promise.all([
+    import('swagger-ui-express'),
+    import('./config/swagger.js'),
+  ]);
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // ── Error handling ─────────────────────────────────────────────────────────
 app.use(notFoundHandler);
@@ -410,12 +430,16 @@ export default server;
   // src/models/BaseModel.js or ts
   write(`src/models/BaseModel.${ext}`, templates.baseModel(isTs));
 
-  // src/routes/index.js or ts
+  // src/routes/index.js or ts (auto-discovers *.routes.js / *.routes.ts)
   if (isTs) {
     write(`src/routes/index.${ext}`, `
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Router, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/index.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
 // ── Sample route ───────────────────────────────────────────────────────────
@@ -427,16 +451,31 @@ router.get('/sample', (req: Request, res: Response) => {
   res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
-// ── Register your routes here ──────────────────────────────────────────────
-// Example: router.use('/users', userRoutes);
+// ── Auto-discover *.routes.js|ts modules ───────────────────────────────────
+const routeFiles = fs.readdirSync(__dirname)
+  .filter((f) => /\\.routes\\.(js|ts)$/.test(f) && !f.endsWith('.d.ts'))
+  .sort();
+
+for (const file of routeFiles) {
+  const base = file.replace(/\\.routes\\.(js|ts)$/, '');
+  const routePath = base === 'auth' || base.endsWith('s') ? \`/\${base}\` : \`/\${base}s\`;
+  const mod = await import(pathToFileURL(path.join(__dirname, file)).href);
+  if (mod.default) {
+    router.use(routePath, mod.default);
+  }
+}
 
 export default router;
 `);
   } else {
     write(`src/routes/index.${ext}`, `
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Router } from 'express';
 import { HTTP_STATUS } from '../constants/index.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
 // ── Sample route ───────────────────────────────────────────────────────────
@@ -448,8 +487,19 @@ router.get('/sample', (req, res) => {
   res.status(HTTP_STATUS.OK).json({ message: 'connected to backend successfully' });
 });
 
-// ── Register your routes here ──────────────────────────────────────────────
-// Example: router.use('/users', userRoutes);
+// ── Auto-discover *.routes.js modules ──────────────────────────────────────
+const routeFiles = fs.readdirSync(__dirname)
+  .filter((f) => f.endsWith('.routes.js'))
+  .sort();
+
+for (const file of routeFiles) {
+  const base = file.replace(/\\.routes\\.js$/, '');
+  const routePath = base === 'auth' || base.endsWith('s') ? \`/\${base}\` : \`/\${base}s\`;
+  const mod = await import(pathToFileURL(path.join(__dirname, file)).href);
+  if (mod.default) {
+    router.use(routePath, mod.default);
+  }
+}
 
 export default router;
 `);
@@ -776,6 +826,64 @@ export function sendPaginated(res, data, pagination) {
 `);
   }
 
+  // src/utils/asyncHandler.js or ts
+  if (isTs) {
+    write(`src/utils/asyncHandler.${ext}`, `
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+): RequestHandler => {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+`);
+  } else {
+    write(`src/utils/asyncHandler.${ext}`, `
+export const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+`);
+  }
+
+  // src/utils/pagination.js or ts
+  if (isTs) {
+    write(`src/utils/pagination.${ext}`, `
+import { Request } from 'express';
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  offset: number;
+  sort: string;
+}
+
+export function getPagination(req: Request, defaultLimit = 20, maxLimit = 100): PaginationParams {
+  const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+  const rawLimit = parseInt(String(req.query.limit || defaultLimit), 10) || defaultLimit;
+  const limit = Math.min(Math.max(1, rawLimit), maxLimit);
+  const offset = (page - 1) * limit;
+  const sort = String(req.query.sort || '-createdAt');
+  return { page, limit, offset, sort };
+}
+`);
+  } else {
+    write(`src/utils/pagination.${ext}`, `
+export function getPagination(req, defaultLimit = 20, maxLimit = 100) {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const rawLimit = parseInt(req.query.limit, 10) || defaultLimit;
+  const limit = Math.min(Math.max(1, rawLimit), maxLimit);
+  const offset = (page - 1) * limit;
+  const sort = req.query.sort || '-createdAt';
+  return { page, limit, offset, sort };
+}
+`);
+  }
+
+  // src/middleware/validate.js or ts
+  write(`src/middleware/validate.${ext}`, buildValidateMiddleware(validation, isTs));
+
   // src/constants/index.js or ts
   write(`src/constants/index.${ext}`, `
 export const HTTP_STATUS = {
@@ -834,6 +942,8 @@ function buildDependencies(database, validation, isTs) {
 
   const dev = {
     nodemon: '^3.1.4',
+    jest: '^29.7.0',
+    supertest: '^7.0.0',
   };
 
   if (isTs) {
@@ -843,12 +953,78 @@ function buildDependencies(database, validation, isTs) {
     dev['@types/express'] = '^4.17.21';
     dev['@types/cors'] = '^2.8.17';
     dev['@types/morgan'] = '^1.9.9';
+    dev['@types/jest'] = '^29.5.12';
+    dev['@types/supertest'] = '^6.0.2';
     if (database === 'sqlite') {
       dev['@types/better-sqlite3'] = '^7.6.10';
     }
   }
 
   return { prod, dev };
+}
+
+function buildValidateMiddleware(validation, isTs) {
+  const types = isTs ? "import { Request, Response, NextFunction } from 'express';\n" : '';
+  const reqResNext = isTs ? 'req: Request, res: Response, next: NextFunction' : 'req, res, next';
+
+  if (validation === 'zod') {
+    return `${types}import { BadRequestError } from '../errors/AppError.js';
+
+export function validate(schema${isTs ? ': any' : ''}) {
+  return (${reqResNext}) => {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return next(new BadRequestError('Validation failed', result.error.flatten()));
+    }
+    req.body = result.data;
+    next();
+  };
+}
+`;
+  }
+
+  if (validation === 'joi') {
+    return `${types}import { BadRequestError } from '../errors/AppError.js';
+
+export function validate(schema${isTs ? ': any' : ''}) {
+  return (${reqResNext}) => {
+    const { error, value } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
+    if (error) {
+      return next(new BadRequestError('Validation failed', error.details.map((d${isTs ? ': any' : ''}) => d.message)));
+    }
+    req.body = value;
+    next();
+  };
+}
+`;
+  }
+
+  if (validation === 'express-validator') {
+    return `${types}import { validationResult } from 'express-validator';
+import { BadRequestError } from '../errors/AppError.js';
+
+export function validate(${reqResNext}) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return next(new BadRequestError('Validation failed', errors.array()));
+  }
+  next();
+}
+`;
+  }
+
+  return `${types}import { BadRequestError } from '../errors/AppError.js';
+
+export function validate(validatorFn${isTs ? ': (body: any) => string[] | null' : ''}) {
+  return (${reqResNext}) => {
+    const errors = validatorFn(req.body);
+    if (errors && errors.length > 0) {
+      return next(new BadRequestError('Validation failed', errors));
+    }
+    next();
+  };
+}
+`;
 }
 
 function buildReadme(projectName, database, validation, isTs) {
