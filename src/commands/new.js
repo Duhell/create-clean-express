@@ -1,10 +1,14 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import fs from 'fs-extra';
 import { execSync } from 'child_process';
 import ora from 'ora';
 import chalk from 'chalk';
 import * as logger from '../utils/logger.js';
 import * as templates from '../templates/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const cliPkg = fs.readJsonSync(path.resolve(__dirname, '../../package.json'));
 
 export async function newCommand(projectName, options = {}) {
   const {
@@ -78,6 +82,7 @@ export async function newCommand(projectName, options = {}) {
 
     // ── Write cex.config.json ──────────────────────────────────────────────
     const config = {
+      cliVersion: cliPkg.version,
       language: isTs ? 'typescript' : 'javascript',
       module: 'esm',
       architecture: 'layered',
@@ -255,6 +260,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import config from './config/index.js';
+import { HTTP_STATUS } from './constants/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import routes from './routes/index.js';
@@ -282,7 +288,7 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(HTTP_STATUS.OK).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ── API Routes ─────────────────────────────────────────────────────────────
@@ -312,6 +318,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import config from './config/index.js';
+import { HTTP_STATUS } from './constants/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import routes from './routes/index.js';
@@ -339,7 +346,7 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(HTTP_STATUS.OK).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ── API Routes ─────────────────────────────────────────────────────────────
@@ -1042,7 +1049,7 @@ function buildDependencies(database, validation, isTs) {
   return { prod, dev };
 }
 
-function buildValidateMiddleware(validation, isTs) {
+export function buildValidateMiddleware(validation, isTs) {
   const types = isTs ? "import { Request, Response, NextFunction } from 'express';\n" : '';
   const reqResNext = isTs ? 'req: Request, res: Response, next: NextFunction' : 'req, res, next';
 

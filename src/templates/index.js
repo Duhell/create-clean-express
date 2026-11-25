@@ -842,13 +842,14 @@ export default ${pascal};
 export function error(pascal, isTs = false) {
   if (isTs) {
     return `import { AppError } from './AppError.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 /**
  * ${pascal} Error
  */
 export class ${pascal}Error extends AppError {
   constructor(message: string = '${pascal} error') {
-    super(message, 400);
+    super(message, HTTP_STATUS.BAD_REQUEST);
     this.name = '${pascal}Error';
   }
 }
@@ -856,13 +857,14 @@ export class ${pascal}Error extends AppError {
   }
 
   return `import { AppError } from './AppError.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 /**
  * ${pascal} Error
  */
 export class ${pascal}Error extends AppError {
   constructor(message = '${pascal} error') {
-    super(message, 400);
+    super(message, HTTP_STATUS.BAD_REQUEST);
     this.name = '${pascal}Error';
   }
 }
@@ -877,12 +879,13 @@ export function authController(isTs = false) {
     return `import { Request, Response, NextFunction } from 'express';
 import AuthService from '../services/AuthService.js';
 import { sendSuccess } from '../utils/response.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await AuthService.register(req.body);
-      sendSuccess(res, result, 'Registration successful', 201);
+      sendSuccess(res, result, 'Registration successful', HTTP_STATUS.CREATED);
     } catch (err) {
       next(err);
     }
@@ -932,12 +935,13 @@ export default new AuthController();
 
   return `import AuthService from '../services/AuthService.js';
 import { sendSuccess } from '../utils/response.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
 class AuthController {
   async register(req, res, next) {
     try {
       const result = await AuthService.register(req.body);
-      return sendSuccess(res, result, 'Registration successful', 201);
+      return sendSuccess(res, result, 'Registration successful', HTTP_STATUS.CREATED);
     } catch (err) {
       next(err);
     }

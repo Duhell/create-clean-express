@@ -186,3 +186,60 @@ test('cex make auth generates database-wired AuthRepository for sqlite, mysql, a
     fs.removeSync(tmpDir);
   }
 });
+
+test('cex upgrade checks compatibility, supports --dry-run, and upgrades older projects non-destructively', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'legacy-api', '--database', 'none', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'legacy-api');
+
+    // Simulate a v0.3.0 project (no cliVersion, missing new helpers/configs)
+    const cfg = fs.readJsonSync(path.join(projectDir, 'cex.config.json'));
+    delete cfg.cliVersion;
+    fs.writeJsonSync(path.join(projectDir, 'cex.config.json'), cfg, { spaces: 2 });
+    fs.removeSync(path.join(projectDir, 'src/utils/asyncHandler.js'));
+    fs.removeSync(path.join(projectDir, '.prettierrc'));
+
+    // Dry run should not create files
+    runCli(['upgrade', '--dry-run'], projectDir);
+    assert.equal(fs.existsSync(path.join(projectDir, 'src/utils/asyncHandler.js')), false);
+
+    // Real upgrade should restore missing files and record cliVersion
+    runCli(['upgrade'], projectDir);
+    assert.ok(fs.existsSync(path.join(projectDir, 'src/utils/asyncHandler.js')));
+    assert.ok(fs.existsSync(path.join(projectDir, '.prettierrc')));
+    const upgradedCfg = fs.readJsonSync(path.join(projectDir, 'cex.config.json'));
+    assert.ok(upgradedCfg.cliVersion);
+
+    // Incompatible project (non-ESM) should fail cleanly
+    const pkg = fs.readJsonSync(path.join(projectDir, 'package.json'));
+    pkg.type = 'commonjs';
+    fs.writeJsonSync(path.join(projectDir, 'package.json'), pkg, { spaces: 2 });
+    assert.throws(() => runCli(['upgrade'], projectDir));
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('templates use HTTP_STATUS constants instead of hardcoded status codes', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'status-api', '--database', 'none', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'status-api');
+    runCli(['make', 'auth'], projectDir);
+    runCli(['make', 'error', 'Payment'], projectDir);
+
+    const authCtrl = fs.readFileSync(path.join(projectDir, 'src/controllers/AuthController.js'), 'utf8');
+    assert.match(authCtrl, /HTTP_STATUS\.CREATED/);
+    assert.doesNotMatch(authCtrl, /,\s*201\)/);
+
+    const errFile = fs.readFileSync(path.join(projectDir, 'src/errors/PaymentError.js'), 'utf8');
+    assert.match(errFile, /HTTP_STATUS\.BAD_REQUEST/);
+    assert.doesNotMatch(errFile, /super\(message,\s*400\)/);
+
+    const appJs = fs.readFileSync(path.join(projectDir, 'src/app.js'), 'utf8');
+    assert.match(appJs, /res\.status\(HTTP_STATUS\.OK\)/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});

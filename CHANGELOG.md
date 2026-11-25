@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-11-25
+
+### Added
+
+- **`cex upgrade` Command**: Checks project compatibility (`cex.config.json`, `layered` architecture, ESM) and non-destructively adds missing helpers (`asyncHandler`, `pagination`, `validate`), `.prettierrc`, `eslint.config.js`, `jest.config.js` (for TS), and `tests/health.test.*`, with `--dry-run` support.
+- **`cliVersion` Tracking**: `cex new` and `cex upgrade` record `cliVersion` in `cex.config.json`.
+
+### Fixed
+
+- **Single Source of Truth for `HTTP_STATUS`**: Replaced remaining hardcoded numeric status codes in `error` templates (`400` -> `HTTP_STATUS.BAD_REQUEST`), `authController` (`201` -> `HTTP_STATUS.CREATED`), and `/health` routes (`HTTP_STATUS.OK`).
+
+---
+
 ## [0.5.0] - 2026-11-25
 
 ### Added

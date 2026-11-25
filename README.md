@@ -105,6 +105,17 @@ cex migrate
 
 ---
 
+### `cex upgrade`
+
+Check compatibility and non-destructively upgrade an existing `cex` project with missing helpers, linter/formatter configs, and test setup.
+
+```bash
+cex upgrade
+cex upgrade --dry-run
+```
+
+---
+
 ### `cex add <plugin>`
 
 Add optional integrations to an existing project.

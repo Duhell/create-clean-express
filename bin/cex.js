@@ -10,6 +10,7 @@ import { newCommand } from '../src/commands/new.js';
 import { makeCommand } from '../src/commands/make.js';
 import { addCommand } from '../src/commands/add.js';
 import { migrateCommand } from '../src/commands/migrate.js';
+import { upgradeCommand } from '../src/commands/upgrade.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -173,5 +174,12 @@ program
   .command('add <plugin>')
   .description('Add an optional integration (swagger|docker|redis|bullmq|socketio)')
   .action(addCommand);
+
+// cex upgrade
+program
+  .command('upgrade')
+  .description('Check compatibility and non-destructively upgrade project helpers & configs')
+  .option('--dry-run', 'Preview upgrade changes without modifying files')
+  .action(upgradeCommand);
 
 program.parse(process.argv);
