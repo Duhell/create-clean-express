@@ -68,6 +68,10 @@ test('cex make auth generates separated JWT secrets, type checks, and auth rate 
 
     const authRoutes = fs.readFileSync(path.join(projectDir, 'src/routes/auth.routes.js'), 'utf8');
     assert.match(authRoutes, /authLimiter/);
+
+    const pkg = fs.readJsonSync(path.join(projectDir, 'package.json'));
+    assert.ok(pkg.dependencies.bcryptjs);
+    assert.ok(pkg.dependencies.jsonwebtoken);
   } finally {
     fs.removeSync(tmpDir);
   }

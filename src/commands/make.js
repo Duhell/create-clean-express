@@ -76,7 +76,7 @@ export async function makeCommand(type, name) {
       break;
 
     case 'auth':
-      generateAuth(srcDir, isTs, ext, config);
+      generateAuth(root, srcDir, isTs, ext, config);
       break;
 
     case 'test':
@@ -140,13 +140,49 @@ function generateResource(srcDir, pascal, camel, kebab, isTs, ext, config = {}) 
   updateRoutesIndex(srcDir, pascal, kebab, ext);
 }
 
-function generateAuth(srcDir, isTs, ext, config = {}) {
+function generateAuth(root, srcDir, isTs, ext, config = {}) {
   generate(srcDir, 'controllers', `AuthController.${ext}`, templates.authController(isTs));
   generate(srcDir, 'services', `AuthService.${ext}`, templates.authService(isTs));
   generate(srcDir, 'repositories', `AuthRepository.${ext}`, templates.authRepository(isTs, config.database));
   generate(srcDir, 'middleware', `AuthMiddleware.${ext}`, templates.authMiddleware(isTs));
   generate(srcDir, 'routes', `auth.routes.${ext}`, templates.authRoute(isTs));
   updateRoutesIndexExact(srcDir, 'auth', ext);
+  ensureAuthDependencies(root, isTs);
+}
+
+function ensureAuthDependencies(root, isTs) {
+  const pkgPath = path.join(root, 'package.json');
+  if (!fs.existsSync(pkgPath)) return;
+
+  const pkg = fs.readJsonSync(pkgPath);
+  pkg.dependencies = pkg.dependencies || {};
+  let changed = false;
+
+  if (!pkg.dependencies.bcryptjs) {
+    pkg.dependencies.bcryptjs = '^2.4.3';
+    changed = true;
+  }
+  if (!pkg.dependencies.jsonwebtoken) {
+    pkg.dependencies.jsonwebtoken = '^9.0.2';
+    changed = true;
+  }
+
+  if (isTs) {
+    pkg.devDependencies = pkg.devDependencies || {};
+    if (!pkg.devDependencies['@types/bcryptjs']) {
+      pkg.devDependencies['@types/bcryptjs'] = '^2.4.6';
+      changed = true;
+    }
+    if (!pkg.devDependencies['@types/jsonwebtoken']) {
+      pkg.devDependencies['@types/jsonwebtoken'] = '^9.0.7';
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    fs.writeJsonSync(pkgPath, pkg, { spaces: 2 });
+    logger.success('Updated package.json with bcryptjs and jsonwebtoken');
+  }
 }
 
 function generateTests(root, pascal, camel, isTs, ext) {
