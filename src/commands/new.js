@@ -298,9 +298,11 @@ app.use('/api/v1', routes);
 
 // ── Optional Swagger UI (auto-mounted when src/config/swagger exists) ──────
 if (fs.existsSync(new URL('./config/swagger.js', import.meta.url))) {
+  const swaggerUiPkg = 'swagger-ui-express';
+  const swaggerSpecPath = './config/swagger.js';
   const [{ default: swaggerUi }, { default: swaggerSpec }] = await Promise.all([
-    import('swagger-ui-express'),
-    import('./config/swagger.js'),
+    import(swaggerUiPkg),
+    import(swaggerSpecPath),
   ]);
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
@@ -358,9 +360,11 @@ app.use('/api/v1', routes);
 
 // ── Optional Swagger UI (auto-mounted when src/config/swagger exists) ──────
 if (fs.existsSync(new URL('./config/swagger.js', import.meta.url))) {
+  const swaggerUiPkg = 'swagger-ui-express';
+  const swaggerSpecPath = './config/swagger.js';
   const [{ default: swaggerUi }, { default: swaggerSpec }] = await Promise.all([
-    import('swagger-ui-express'),
-    import('./config/swagger.js'),
+    import(swaggerUiPkg),
+    import(swaggerSpecPath),
   ]);
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
@@ -718,7 +722,7 @@ export class AppError extends Error {
   public isOperational: boolean;
   public errors: any;
 
-  constructor(message: string, statusCode = HTTP_STATUS.INTERNAL, errors = null) {
+  constructor(message: string, statusCode = HTTP_STATUS.INTERNAL, errors: any = null) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
@@ -735,7 +739,7 @@ export class NotFoundError extends AppError {
 }
 
 export class BadRequestError extends AppError {
-  constructor(message = 'Bad request', errors = null) {
+  constructor(message = 'Bad request', errors: any = null) {
     super(message, HTTP_STATUS.BAD_REQUEST, errors);
   }
 }
@@ -779,7 +783,7 @@ export class NotFoundError extends AppError {
 }
 
 export class BadRequestError extends AppError {
-  constructor(message = 'Bad request', errors = null) {
+  constructor(message = 'Bad request', errors: any = null) {
     super(message, HTTP_STATUS.BAD_REQUEST, errors);
   }
 }

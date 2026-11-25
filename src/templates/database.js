@@ -3,7 +3,7 @@
  */
 
 export function baseModel(isTs = false, database = 'none') {
-  const idType = isTs ? ': string | number' : '';
+  const idType = isTs ? ': string | number | bigint' : '';
   const recType = isTs ? ': Record<string, any>' : '';
   const promAny = isTs ? ': Promise<any>' : '';
   const promArr = isTs ? ': Promise<any[]>' : '';
