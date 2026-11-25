@@ -172,7 +172,7 @@ program
 // cex add <plugin>
 program
   .command('add <plugin>')
-  .description('Add an optional integration (swagger|docker|redis|bullmq|socketio)')
+  .description('Add an optional integration (swagger|docker|redis|bullmq|socketio|mail|audit)')
   .action(addCommand);
 
 // cex upgrade

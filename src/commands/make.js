@@ -1,4 +1,5 @@
 import path from 'path';
+import { execSync } from 'child_process';
 import fs from 'fs-extra';
 import chalk from 'chalk';
 import * as logger from '../utils/logger.js';
@@ -145,7 +146,8 @@ function generateAuth(root, srcDir, isTs, ext, config = {}) {
   generate(srcDir, 'services', `AuthService.${ext}`, templates.authService(isTs));
   generate(srcDir, 'repositories', `AuthRepository.${ext}`, templates.authRepository(isTs, config.database));
   generate(srcDir, 'middleware', `AuthMiddleware.${ext}`, templates.authMiddleware(isTs));
-  generate(srcDir, 'routes', `auth.routes.${ext}`, templates.authRoute(isTs));
+  generate(srcDir, 'validators', `AuthValidator.${ext}`, templates.authValidator(isTs, config.validation));
+  generate(srcDir, 'routes', `auth.routes.${ext}`, templates.authRoute(isTs, config.validation));
   updateRoutesIndexExact(srcDir, 'auth', ext);
   ensureAuthDependencies(root, isTs);
 }
@@ -182,6 +184,14 @@ function ensureAuthDependencies(root, isTs) {
   if (changed) {
     fs.writeJsonSync(pkgPath, pkg, { spaces: 2 });
     logger.success('Updated package.json with bcryptjs and jsonwebtoken');
+    if (fs.existsSync(path.join(root, 'node_modules'))) {
+      try {
+        execSync('npm install', { cwd: root, stdio: 'ignore' });
+        logger.success('Installed auth dependencies');
+      } catch {
+        logger.warn('Could not auto-install auth dependencies — run npm install manually');
+      }
+    }
   }
 }
 

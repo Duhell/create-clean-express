@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-11-25
+
+### Added
+
+- **`cex add mail` Plugin**: Added SMTP mail plugin using `nodemailer` (`src/config/mail.js|ts` and `src/services/MailService.js|ts` with `queue().sendMail()` fallback).
+- **`cex add audit` Plugin**: Added `audit_logs` migration, `EventEmitter`-based `AuditService` (`auth.login`, `auth.logout`, `auth.register`, `crud.create`, `crud.update`, `crud.delete` with `oldData`/`newData`), and `AuditMiddleware`.
+- **ORM Connection & Prisma Schema Scaffolding**: `dbTemplate` now generates real connection setups for `prisma`, `mongoose`, `sequelize`, and `drizzle`; `cex new --database prisma` scaffolds `prisma/schema.prisma`.
+- **Auth Route Validation**: `cex make auth` now generates `src/validators/AuthValidator.js|ts` (for `zod`, `joi`, `express-validator`, or custom validation) and wires `validate(...)` onto `/register` and `/login`.
+- **Auto-Install Auth Dependencies**: `cex make auth` runs `npm install` automatically when `node_modules` already exists in the project.
+- **End-to-End TypeScript CI**: CI now installs, builds, and runs `npm test` inside `smoke-test-ts`.
+
+---
+
 ## [0.6.0] - 2026-11-25
 
 ### Added

@@ -243,3 +243,104 @@ test('templates use HTTP_STATUS constants instead of hardcoded status codes', ()
     fs.removeSync(tmpDir);
   }
 });
+
+test('cex new scaffolds prisma schema and ORM db connections', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'prisma-api', '--database', 'prisma', '--no-install', '--no-git'], tmpDir);
+    assert.ok(fs.existsSync(path.join(tmpDir, 'prisma-api/prisma/schema.prisma')));
+    const prismaDb = fs.readFileSync(path.join(tmpDir, 'prisma-api/src/database/index.js'), 'utf8');
+    assert.match(prismaDb, /PrismaClient/);
+
+    runCli(['new', 'mongo-api', '--database', 'mongoose', '--no-install', '--no-git'], tmpDir);
+    const mongoDb = fs.readFileSync(path.join(tmpDir, 'mongo-api/src/database/index.js'), 'utf8');
+    assert.match(mongoDb, /mongoose\.connect/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('cex make auth wires AuthValidator onto auth routes', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'val-auth', '--database', 'none', '--validation', 'zod', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'val-auth');
+    runCli(['make', 'auth'], projectDir);
+
+    const validator = fs.readFileSync(path.join(projectDir, 'src/validators/AuthValidator.js'), 'utf8');
+    assert.match(validator, /registerSchema/);
+    assert.match(validator, /z\.object/);
+
+    const routes = fs.readFileSync(path.join(projectDir, 'src/routes/auth.routes.js'), 'utf8');
+    assert.match(routes, /validate\(registerSchema\)/);
+    assert.match(routes, /validate\(loginSchema\)/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('cex add mail generates SMTP config and MailService (JS and TS)', async () => {
+  const { addCommand } = await import('../src/commands/add.js');
+  assert.equal(typeof addCommand, 'function');
+
+  // Verify mail plugin is registered in CLI help
+  const helpOut = execFileSync(process.execPath, [CLI_BIN, '--help'], { encoding: 'utf8' });
+  assert.match(helpOut, /mail/);
+
+  // Verify add.js template includes MailService.queue().sendMail with fallback
+  const addSrc = fs.readFileSync(path.resolve(__dirname, '../src/commands/add.js'), 'utf8');
+  assert.match(addSrc, /queue\(jobOptions/);
+  assert.match(addSrc, /return this\.sendMail\(mailOptions\)/);
+  assert.doesNotMatch(addSrc, /sendEmail/);
+});
+
+test('cex new scaffolds async structured logger, requestId middleware, and ORM-aware BaseModel', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'obs-sqlite', '--database', 'sqlite', '--no-install', '--no-git'], tmpDir);
+    const sqliteDir = path.join(tmpDir, 'obs-sqlite');
+
+    const loggerJs = fs.readFileSync(path.join(sqliteDir, 'src/utils/logger.js'), 'utf8');
+    assert.match(loggerJs, /fs\.promises\.appendFile/);
+    assert.match(loggerJs, /export const logger =/);
+    assert.match(loggerJs, /req\?\.id/);
+
+    assert.ok(fs.existsSync(path.join(sqliteDir, 'src/middleware/requestId.js')));
+    const appJs = fs.readFileSync(path.join(sqliteDir, 'src/app.js'), 'utf8');
+    assert.match(appJs, /app\.use\(requestIdMiddleware\)/);
+
+    const sqliteBase = fs.readFileSync(path.join(sqliteDir, 'src/models/BaseModel.js'), 'utf8');
+    assert.match(sqliteBase, /db\.prepare\(/);
+
+    runCli(['new', 'obs-mysql', '--database', 'mysql', '--no-install', '--no-git'], tmpDir);
+    const mysqlBase = fs.readFileSync(path.join(tmpDir, 'obs-mysql/src/models/BaseModel.js'), 'utf8');
+    assert.match(mysqlBase, /pool\.execute\(/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});
+
+test('cex add audit generates migration, AuditService with event listeners, and AuditMiddleware', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cex-test-'));
+  try {
+    runCli(['new', 'audit-api', '--database', 'sqlite', '--no-install', '--no-git'], tmpDir);
+    const projectDir = path.join(tmpDir, 'audit-api');
+    runCli(['add', 'audit'], projectDir);
+
+    const migrations = fs.readdirSync(path.join(projectDir, 'src/database/migrations'));
+    assert.ok(migrations.some((f) => f.endsWith('_create_audit_logs_table.js')));
+
+    const auditService = fs.readFileSync(path.join(projectDir, 'src/services/AuditService.js'), 'utf8');
+    assert.match(auditService, /EventEmitter/);
+    assert.match(auditService, /auth\.login/);
+    assert.match(auditService, /crud\.update/);
+    assert.match(auditService, /oldData/);
+    assert.match(auditService, /newData/);
+
+    const auditMiddleware = fs.readFileSync(path.join(projectDir, 'src/middleware/AuditMiddleware.js'), 'utf8');
+    assert.match(auditMiddleware, /auditMiddleware/);
+    assert.match(auditMiddleware, /auditOldData/);
+  } finally {
+    fs.removeSync(tmpDir);
+  }
+});

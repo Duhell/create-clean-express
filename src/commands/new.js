@@ -263,11 +263,13 @@ import config from './config/index.js';
 import { HTTP_STATUS } from './constants/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
 import routes from './routes/index.js';
 
 const app: Application = express();
 
 // ── Security & Parsing ─────────────────────────────────────────────────────
+app.use(requestIdMiddleware);
 app.use(helmet());
 app.use(cors({ origin: config.cors.origin, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
@@ -321,11 +323,13 @@ import config from './config/index.js';
 import { HTTP_STATUS } from './constants/index.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFound.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
 import routes from './routes/index.js';
 
 const app = express();
 
 // ── Security & Parsing ─────────────────────────────────────────────────────
+app.use(requestIdMiddleware);
 app.use(helmet());
 app.use(cors({ origin: config.cors.origin, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
@@ -439,7 +443,10 @@ export default server;
   }
 
   // src/models/BaseModel.js or ts
-  write(`src/models/BaseModel.${ext}`, templates.baseModel(isTs));
+  write(`src/models/BaseModel.${ext}`, templates.baseModel(isTs, database));
+
+  // src/middleware/requestId.js or ts
+  write(`src/middleware/requestId.${ext}`, templates.requestIdTemplate(isTs));
 
   // src/routes/index.js or ts (auto-discovers *.routes.js / *.routes.ts)
   if (isTs) {
@@ -913,6 +920,28 @@ export const HTTP_STATUS = {
 
   // src/database/index.js or ts
   write(`src/database/index.${ext}`, templates.dbTemplate(database, isTs));
+
+  if (database === 'prisma') {
+    write('prisma/schema.prisma', `
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+`);
+  }
 
   // .prettierrc
   write('.prettierrc', JSON.stringify({

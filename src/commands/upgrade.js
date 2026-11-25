@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import * as logger from '../utils/logger.js';
 import { findProjectRoot, loadConfig } from '../utils/project.js';
 import { buildValidateMiddleware } from './new.js';
+import { requestIdTemplate } from '../templates/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliPkg = fs.readJsonSync(path.resolve(__dirname, '../../package.json'));
@@ -177,6 +178,10 @@ export function getPagination(req: Request, defaultLimit = 20, maxLimit = 100): 
     {
       relPath: `src/middleware/validate.${ext}`,
       content: buildValidateMiddleware(validation, isTs),
+    },
+    {
+      relPath: `src/middleware/requestId.${ext}`,
+      content: requestIdTemplate(isTs),
     },
     {
       relPath: '.prettierrc',

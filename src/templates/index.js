@@ -2,6 +2,9 @@
  * Scaffolding Templates (ESM & TypeScript Support)
  */
 
+export { fileLoggerTemplate, requestIdTemplate } from './logger.js';
+export { baseModel, dbTemplate } from './database.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Controller template
 // ─────────────────────────────────────────────────────────────────────────────
@@ -512,244 +515,7 @@ export default router;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BaseModel template
-// ─────────────────────────────────────────────────────────────────────────────
-export function baseModel(isTs = false) {
-  if (isTs) {
-    return `import { db } from '../database/index.js';
-
-export class BaseModel {
-  static tableName: string = '';
-  static primaryKey: string = 'id';
-
-  /**
-   * Find a single record by primary key
-   */
-  static async find(id: string | number): Promise<any> {
-    if (typeof db?.query === 'function') {
-      const rows = await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${this.primaryKey} = ? LIMIT 1\`, [id]);
-      return rows[0] || null;
-    }
-    if (typeof db?.select === 'function') {
-      const rows = await db.select().from(this.getTableName()).where({ [this.primaryKey]: id }).limit(1);
-      return rows[0] || null;
-    }
-    return null;
-  }
-
-  /**
-   * Find all records matching optional conditions
-   */
-  static async findAll(where: Record<string, any> = {}): Promise<any[]> {
-    if (typeof db?.select === 'function') {
-      return await db.select().from(this.getTableName()).where(where);
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(where);
-      if (keys.length === 0) {
-        return await db.query(\`SELECT * FROM \${this.getTableName()}\`);
-      }
-      const clauses = keys.map(k => \`\${k} = ?\`).join(' AND ');
-      const values = keys.map(k => where[k]);
-      return await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${clauses}\`, values);
-    }
-    return [];
-  }
-
-  /**
-   * Alias for findAll with criteria
-   */
-  static async where(conditions: Record<string, any>): Promise<any[]> {
-    return this.findAll(conditions);
-  }
-
-  /**
-   * Create a new record
-   */
-  static async create(data: Record<string, any>): Promise<any> {
-    if (typeof db?.insert === 'function') {
-      return await db.insert(data).into(this.getTableName());
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(data);
-      const cols = keys.join(', ');
-      const placeholders = keys.map(() => '?').join(', ');
-      const values = keys.map(k => data[k]);
-      return await db.query(\`INSERT INTO \${this.getTableName()} (\${cols}) VALUES (\${placeholders})\`, values);
-    }
-    return { [this.primaryKey]: Date.now(), ...data };
-  }
-
-  /**
-   * Update an existing record
-   */
-  static async update(id: string | number, data: Record<string, any>): Promise<any> {
-    if (typeof db?.where === 'function') {
-      return await db(this.getTableName()).where({ [this.primaryKey]: id }).update(data);
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(data);
-      const setClause = keys.map(k => \`\${k} = ?\`).join(', ');
-      const values = [...keys.map(k => data[k]), id];
-      return await db.query(\`UPDATE \${this.getTableName()} SET \${setClause} WHERE \${this.primaryKey} = ?\`, values);
-    }
-    return { [this.primaryKey]: id, ...data };
-  }
-
-  /**
-   * Delete a record by primary key
-   */
-  static async delete(id: string | number): Promise<boolean> {
-    if (typeof db?.where === 'function') {
-      await db(this.getTableName()).where({ [this.primaryKey]: id }).del();
-      return true;
-    }
-    if (typeof db?.query === 'function') {
-      await db.query(\`DELETE FROM \${this.getTableName()} WHERE \${this.primaryKey} = ?\`, [id]);
-      return true;
-    }
-    return true;
-  }
-
-  /**
-   * Execute raw SQL query
-   */
-  static async query(sql: string, params: any[] = []): Promise<any> {
-    if (typeof db?.query === 'function') {
-      return await db.query(sql, params);
-    }
-    if (typeof db?.raw === 'function') {
-      return await db.raw(sql, params);
-    }
-    return null;
-  }
-
-  protected static getTableName(): string {
-    if (this.tableName) return this.tableName;
-    return this.name.toLowerCase() + 's';
-  }
-}
-
-export default BaseModel;
-`;
-  }
-
-  return `import { db } from '../database/index.js';
-
-export class BaseModel {
-  static tableName = '';
-  static primaryKey = 'id';
-
-  /**
-   * Find a single record by primary key
-   */
-  static async find(id) {
-    if (typeof db?.query === 'function') {
-      const rows = await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${this.primaryKey} = ? LIMIT 1\`, [id]);
-      return rows[0] || null;
-    }
-    if (typeof db?.select === 'function') {
-      const rows = await db.select().from(this.getTableName()).where({ [this.primaryKey]: id }).limit(1);
-      return rows[0] || null;
-    }
-    return null;
-  }
-
-  /**
-   * Find all records matching optional conditions
-   */
-  static async findAll(where = {}) {
-    if (typeof db?.select === 'function') {
-      return await db.select().from(this.getTableName()).where(where);
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(where);
-      if (keys.length === 0) {
-        return await db.query(\`SELECT * FROM \${this.getTableName()}\`);
-      }
-      const clauses = keys.map(k => \`\${k} = ?\`).join(' AND ');
-      const values = keys.map(k => where[k]);
-      return await db.query(\`SELECT * FROM \${this.getTableName()} WHERE \${clauses}\`, values);
-    }
-    return [];
-  }
-
-  /**
-   * Alias for findAll with criteria
-   */
-  static async where(conditions) {
-    return this.findAll(conditions);
-  }
-
-  /**
-   * Create a new record
-   */
-  static async create(data) {
-    if (typeof db?.insert === 'function') {
-      return await db.insert(data).into(this.getTableName());
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(data);
-      const cols = keys.join(', ');
-      const placeholders = keys.map(() => '?').join(', ');
-      const values = keys.map(k => data[k]);
-      return await db.query(\`INSERT INTO \${this.getTableName()} (\${cols}) VALUES (\${placeholders})\`, values);
-    }
-    return { [this.primaryKey]: Date.now(), ...data };
-  }
-
-  /**
-   * Update an existing record
-   */
-  static async update(id, data) {
-    if (typeof db?.where === 'function') {
-      return await db(this.getTableName()).where({ [this.primaryKey]: id }).update(data);
-    }
-    if (typeof db?.query === 'function') {
-      const keys = Object.keys(data);
-      const setClause = keys.map(k => \`\${k} = ?\`).join(', ');
-      const values = [...keys.map(k => data[k]), id];
-      return await db.query(\`UPDATE \${this.getTableName()} SET \${setClause} WHERE \${this.primaryKey} = ?\`, values);
-    }
-    return { [this.primaryKey]: id, ...data };
-  }
-
-  /**
-   * Delete a record by primary key
-   */
-  static async delete(id) {
-    if (typeof db?.where === 'function') {
-      await db(this.getTableName()).where({ [this.primaryKey]: id }).del();
-      return true;
-    }
-    if (typeof db?.query === 'function') {
-      await db.query(\`DELETE FROM \${this.getTableName()} WHERE \${this.primaryKey} = ?\`, [id]);
-      return true;
-    }
-    return true;
-  }
-
-  /**
-   * Execute raw SQL query
-   */
-  static async query(sql, params = []) {
-    if (typeof db?.query === 'function') {
-      return await db.query(sql, params);
-    }
-    if (typeof db?.raw === 'function') {
-      return await db.raw(sql, params);
-    }
-    return null;
-  }
-
-  static getTableName() {
-    if (this.tableName) return this.tableName;
-    return this.name.toLowerCase() + 's';
-  }
-}
-
-export default BaseModel;
-`;
-}
+// BaseModel is re-exported from ./database.js
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model template
@@ -1375,11 +1141,81 @@ export function optionalAuthMiddleware(req, res, next) {
 `;
 }
 
-export function authRoute(isTs = false) {
-  return `import { Router } from 'express';
+export function authValidator(isTs = false, validation = 'none') {
+  if (validation === 'zod') {
+    return `import { z } from 'zod';
+
+export const registerSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+`;
+  }
+
+  if (validation === 'joi') {
+    return `import Joi from 'joi';
+
+export const registerSchema = Joi.object({
+  name: Joi.string().min(2).required(),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required(),
+});
+
+export const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().required(),
+});
+`;
+  }
+
+  if (validation === 'express-validator') {
+    return `import { body } from 'express-validator';
+
+export const registerRules = [
+  body('name').isString().isLength({ min: 2 }),
+  body('email').isEmail(),
+  body('password').isString().isLength({ min: 8 }),
+];
+
+export const loginRules = [
+  body('email').isEmail(),
+  body('password').isString().notEmpty(),
+];
+`;
+  }
+
+  const paramType = isTs ? ': Record<string, any>' : '';
+  return `export function registerSchema(body${paramType} = {}) {
+  const errors${isTs ? ': string[]' : ''} = [];
+  if (!body.name || String(body.name).trim().length < 2) errors.push('name must be at least 2 characters');
+  if (!body.email || !String(body.email).includes('@')) errors.push('valid email is required');
+  if (!body.password || String(body.password).length < 8) errors.push('password must be at least 8 characters');
+  return errors;
+}
+
+export function loginSchema(body${paramType} = {}) {
+  const errors${isTs ? ': string[]' : ''} = [];
+  if (!body.email || !String(body.email).includes('@')) errors.push('valid email is required');
+  if (!body.password) errors.push('password is required');
+  return errors;
+}
+`;
+}
+
+export function authRoute(isTs = false, validation = 'none') {
+  if (validation === 'express-validator') {
+    return `import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import AuthController from '../controllers/AuthController.js';
 import { authMiddleware } from '../middleware/AuthMiddleware.js';
+import { validate } from '../middleware/validate.js';
+import { registerRules, loginRules } from '../validators/AuthValidator.js';
 
 const router = Router();
 
@@ -1390,8 +1226,34 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/register', authLimiter, AuthController.register.bind(AuthController));
-router.post('/login', authLimiter, AuthController.login.bind(AuthController));
+router.post('/register', authLimiter, ...registerRules, validate, AuthController.register.bind(AuthController));
+router.post('/login', authLimiter, ...loginRules, validate, AuthController.login.bind(AuthController));
+router.post('/refresh', authLimiter, AuthController.refresh.bind(AuthController));
+router.post('/logout', authMiddleware, AuthController.logout.bind(AuthController));
+router.get('/me', authMiddleware, AuthController.me.bind(AuthController));
+
+export default router;
+`;
+  }
+
+  return `import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import AuthController from '../controllers/AuthController.js';
+import { authMiddleware } from '../middleware/AuthMiddleware.js';
+import { validate } from '../middleware/validate.js';
+import { registerSchema, loginSchema } from '../validators/AuthValidator.js';
+
+const router = Router();
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/register', authLimiter, validate(registerSchema), AuthController.register.bind(AuthController));
+router.post('/login', authLimiter, validate(loginSchema), AuthController.login.bind(AuthController));
 router.post('/refresh', authLimiter, AuthController.refresh.bind(AuthController));
 router.post('/logout', authMiddleware, AuthController.logout.bind(AuthController));
 router.get('/me', authMiddleware, AuthController.me.bind(AuthController));
@@ -1460,148 +1322,4 @@ describe('${pascal}Service', () => {
 `;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// File Logger Template for Scaffolded Projects
-// ─────────────────────────────────────────────────────────────────────────────
-export function fileLoggerTemplate(isTs = false) {
-  if (isTs) {
-    return `import fs from 'fs';
-import path from 'path';
-
-const logsDir = path.resolve(process.cwd(), 'logs');
-
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-
-export function logErrorToFile(error: any, req?: any): void {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const logFilePath = path.join(logsDir, \`error-\${today}.txt\`);
-    const timestamp = new Date().toISOString();
-
-    let message = \`[\${timestamp}] ERROR: \${error?.message || error}\\n\`;
-    if (req) {
-      message += \`Route: \${req.method} \${req.originalUrl}\\n\`;
-    }
-    if (error?.stack) {
-      message += \`Stack: \${error.stack}\\n\`;
-    }
-    message += \`--------------------------------------------------\\n\\n\`;
-
-    fs.appendFileSync(logFilePath, message, 'utf8');
-  } catch (err) {
-    console.error('Failed to write to log file:', err);
-  }
-}
-`;
-  }
-
-  return `import fs from 'fs';
-import path from 'path';
-
-const logsDir = path.resolve(process.cwd(), 'logs');
-
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-
-export function logErrorToFile(error, req) {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const logFilePath = path.join(logsDir, \`error-\${today}.txt\`);
-    const timestamp = new Date().toISOString();
-
-    let message = \`[\${timestamp}] ERROR: \${error?.message || error}\\n\`;
-    if (req) {
-      message += \`Route: \${req.method} \${req.originalUrl}\\n\`;
-    }
-    if (error?.stack) {
-      message += \`Stack: \${error.stack}\\n\`;
-    }
-    message += \`--------------------------------------------------\\n\\n\`;
-
-    fs.appendFileSync(logFilePath, message, 'utf8');
-  } catch (err) {
-    console.error('Failed to write to log file:', err);
-  }
-}
-`;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Database Driver Connection Templates (SQLite & MySQL)
-// ─────────────────────────────────────────────────────────────────────────────
-export function dbTemplate(database, isTs = false) {
-  if (database === 'sqlite') {
-    if (isTs) {
-      return `import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = process.env.DATABASE_URL || path.resolve(process.cwd(), 'database.sqlite');
-export const db = new Database(dbPath);
-
-console.log(\`Connected to SQLite database at \${dbPath}\`);
-export default db;
-`;
-    }
-    return `import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = process.env.DATABASE_URL || path.resolve(process.cwd(), 'database.sqlite');
-export const db = new Database(dbPath);
-
-console.log(\`Connected to SQLite database at \${dbPath}\`);
-export default db;
-`;
-  }
-
-  if (database === 'mysql') {
-    if (isTs) {
-      return `import mysql from 'mysql2/promise';
-
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'my_database',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-console.log('MySQL connection pool initialized');
-export default pool;
-`;
-    }
-    return `import mysql from 'mysql2/promise';
-
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'my_database',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-console.log('MySQL connection pool initialized');
-export default pool;
-`;
-  }
-
-  if (isTs) {
-    return `// Database connection placeholder
-export const db = {};
-export default db;
-`;
-  }
-
-  return `// Database connection placeholder
-export const db = {};
-export default db;
-`;
-}
+// fileLoggerTemplate and dbTemplate are re-exported from ./logger.js and ./database.js

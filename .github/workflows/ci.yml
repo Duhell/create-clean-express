@@ -78,6 +78,13 @@ jobs:
           test -f smoke-test-ts/src/utils/logger.ts
           echo "All expected TS files exist ✔"
 
+      - name: End-to-end test — install, build & run jest in scaffolded TS project
+        working-directory: smoke-test-ts
+        run: |
+          npm install
+          npm run build
+          npm test
+
       - name: Smoke test — repository pattern
         run: node bin/cex.js new smoke-test-repo --pattern repository --no-install --no-git
 

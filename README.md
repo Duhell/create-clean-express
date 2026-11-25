@@ -13,10 +13,11 @@
 - **One-command scaffolding** — create a structured Express.js project with ESM or TypeScript
 - **Layered architecture** — supports `service-model` (default) and `repository` patterns
 - **Code generators** — generate controllers, services, models, migrations, routes, repositories, middleware, validators, utilities, errors, and tests
-- **JWT authentication module** — complete auth flow with separate access/refresh secrets, token type checks, and rate-limited auth routes
-- **Security defaults** — Helmet headers, origin-configurable CORS, `express-rate-limit`, `100kb` payload limits, and production secret validation
-- **Plugin system** — add Swagger, Docker, Redis, BullMQ, or Socket.IO in one command
+- **JWT authentication module** — complete auth flow with separate access/refresh secrets, token type checks, route validation, and rate-limited auth routes
+- **Security & observability defaults** — Helmet, origin-configurable CORS, `express-rate-limit`, `100kb` payload limits, `X-Request-Id` tracing, and async structured logging
+- **Plugin system** — add Swagger, Docker, Redis, BullMQ, Socket.IO, SMTP Mail, or Audit Logging in one command
 - **Database & validation support** — SQLite, MySQL, Prisma, Sequelize, Mongoose, Drizzle, plus Zod, Joi, or express-validator
+- **Tooling & upgrades** — ESLint, Prettier, Jest + Supertest, route auto-discovery, and `cex upgrade` for existing projects
 
 ---
 
@@ -126,7 +127,77 @@ cex add docker     # Dockerfile + docker-compose.yml + .dockerignore
 cex add redis      # ioredis client config
 cex add bullmq     # BullMQ queue + worker setup
 cex add socketio   # Socket.IO server config
+cex add mail       # SMTP mail transport & MailService (nodemailer)
+cex add audit      # AuditService, audit_logs migration, & AuditMiddleware
 ```
+
+#### Plugin Usage Examples
+
+* **Swagger (`cex add swagger`):**
+  Automatically mounted at `/api-docs` by `src/app.js` when `src/config/swagger.js|ts` exists. Add JSDoc `@openapi` comments to `src/routes/*.js|ts`.
+
+* **Docker (`cex add docker`):**
+  ```bash
+  POSTGRES_PASSWORD=your_strong_password docker compose up --build
+  ```
+
+* **Redis (`cex add redis`):**
+  ```js
+  import redis from './config/redis.js';
+  await redis.set('key', 'value', 'EX', 60);
+  ```
+
+* **BullMQ (`cex add bullmq`):**
+  ```js
+  import { createQueue, createWorker } from './config/queue.js';
+  const emailQueue = createQueue('emails');
+  createWorker('emails', async (job) => { /* process job.data */ });
+  await emailQueue.add('welcome', { userId: 1 });
+  ```
+
+* **Socket.IO (`cex add socketio`):**
+  In `src/server.js|ts`:
+  ```js
+  import { initSocket } from './config/socket.js';
+  const io = initSocket(server);
+  ```
+
+* **Mail (`cex add mail`):**
+  Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `MAIL_FROM` in `.env`.
+  ```js
+  import MailService from '../services/MailService.js';
+
+  // Send immediately
+  await MailService.sendMail({
+    to: user.email,
+    subject: 'Welcome!',
+    html: `<p>Hi ${user.name}</p>`,
+  });
+
+  // Queue via BullMQ (falls back to immediate sendMail if BullMQ is not added)
+  await MailService.queue({ attempts: 3 }).sendMail({
+    to: user.email,
+    subject: 'Welcome!',
+    html: `<p>Hi ${user.name}</p>`,
+  });
+  ```
+
+* **Audit (`cex add audit`):**
+  Run `cex migrate` to create the `audit_logs` table, then emit auth events or attach `auditMiddleware`:
+  ```js
+  import AuditService from '../services/AuditService.js';
+  import { auditMiddleware } from '../middleware/AuditMiddleware.js';
+
+  // 1. Auth events
+  AuditService.emitAuth('auth.login', { userId: user.id, newData: { email: user.email }, req });
+
+  // 2. Route CRUD tracking (attaches oldData / newData on 2xx responses)
+  router.use(auditMiddleware('users'));
+
+  // In controller update():
+  req.auditOldData = await UserModel.find(req.params.id);
+  req.auditNewData = await UserModel.update(req.params.id, req.body);
+  ```
 
 ---
 
