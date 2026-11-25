@@ -783,7 +783,7 @@ export class NotFoundError extends AppError {
 }
 
 export class BadRequestError extends AppError {
-  constructor(message = 'Bad request', errors: any = null) {
+  constructor(message = 'Bad request', errors = null) {
     super(message, HTTP_STATUS.BAD_REQUEST, errors);
   }
 }
